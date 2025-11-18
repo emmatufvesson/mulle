@@ -200,6 +200,7 @@ class MulleGUI:
         self.action_mode = None
         self.update_display()
 
+
     def set_action(self, mode):
         self.action_mode = mode
         self.status_label.config(text=f"Läge: {mode.upper()} - Välj kort från hand")
@@ -362,7 +363,7 @@ class MulleGUI:
 
         try:
             if self.action_mode == 'trotta':
-                result = perform_trotta(self.board, player, card)
+                result = perform_trotta(self.board, player, card, self.round_number)
                 self.status_label.config(text=f"Trotta utfört: {len(result.captured)} kort")
             elif self.action_mode == 'discard':
                 result = perform_discard(self.board, player, card)
@@ -381,7 +382,7 @@ class MulleGUI:
             return
 
         try:
-            result = perform_build(self.board, player, pile, card)
+            result = perform_build(self.board, player, pile, card, self.round_number)
             self.status_label.config(text="Bygge skapat!")
             self.next_turn()
         except Exception as e:
@@ -409,7 +410,7 @@ class MulleGUI:
     def auto_play(self):
         player = self.players[self.current_player_idx]
         try:
-            result = auto_play_turn(self.board, player)
+            result = auto_play_turn(self.board, player, self.round_number)
             self.status_label.config(text=f"{player.name} auto: {len(result.captured)} kort intagna")
             self.next_turn()
         except Exception as e:
@@ -442,7 +443,7 @@ class MulleGUI:
         bo = self.players[1]
         if bo.hand:
             try:
-                result = auto_play_turn(self.board, bo)
+                result = auto_play_turn(self.board, bo, self.round_number)
 
                 # Show Bo's move in a dialog
                 captured_text = ", ".join(c.code() for c in result.captured) if result.captured else "inga"
@@ -477,6 +478,17 @@ class MulleGUI:
                 messagebox.showerror("Fel", str(e))
 
     def end_round(self):
+        # Check if there are any builds left on the board
+        remaining_builds = self.board.list_builds()
+        if remaining_builds:
+            # Warn the player that builds remain
+            build_info = "\n".join([f"- {b.owner}'s bygge (värde {b.value})" for b in remaining_builds])
+            messagebox.showwarning(
+                "Byggen kvar på bordet!",
+                f"Följande byggen togs inte in under ronden:\n\n{build_info}\n\n"
+                f"OBS: Dessa byggen ska ha tagits in! Kontrollera reglerna."
+            )
+
         scores = score_round(self.players)
         # Don't accumulate scores yet - only after all 7 rounds
         # Just show round results

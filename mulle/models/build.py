@@ -2,11 +2,12 @@ from typing import List
 from .card import Card
 
 class Build:
-    def __init__(self, cards: List[Card], owner: str, target_value: int, locked: bool=False):
+    def __init__(self, cards: List[Card], owner: str, target_value: int, locked: bool=False, created_round: int=1):
         self.cards: List[Card] = list(cards)
         self.owner: str = owner  # name of player who owns/builds
         self.target_value: int = target_value  # the declared value of the build
         self.locked: bool = locked
+        self.created_round: int = created_round  # Track which round this build was created
 
     @property
     def value(self) -> int:
@@ -18,6 +19,12 @@ class Build:
         if actor != self.owner:
             raise ValueError("Only owner may extend build")
         self.cards.extend(cards)
+
+    def add_trotta_card(self, card: Card):
+        """Add a card via trotta - allowed even on locked builds"""
+        self.cards.append(card)
+        # Trotta always locks the build
+        self.locked = True
 
     def lock(self):
         self.locked = True

@@ -17,7 +17,7 @@ class Board:
     def remove_pile(self, pile: Pile):
         self.piles.remove(pile)
 
-    def create_build(self, base_pile: Pile, added_card: Card, owner: str) -> Build:
+    def create_build(self, base_pile: Pile, added_card: Card, owner: str, created_round: int=1) -> Build:
         # Remove base from board
         base_cards = base_pile.cards if isinstance(base_pile, Build) else base_pile
         self.remove_pile(base_pile)
@@ -37,7 +37,7 @@ class Board:
             return existing
 
         # Initial build (no existing build with this value)
-        new_build = Build(cards, owner=owner, target_value=target_value, locked=False)
+        new_build = Build(cards, owner=owner, target_value=target_value, locked=False, created_round=created_round)
 
         # Absorb rule: ONLY single cards and 2-card piles/builds can be absorbed
         # 3+ card piles can only be used during capture, not absorbed into builds

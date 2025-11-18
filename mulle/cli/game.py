@@ -71,7 +71,7 @@ def _find_board_pile_by_index(board: Board, token: str):
     return None
 
 
-def interactive_turn(board: Board, player: Player) -> None:
+def interactive_turn(board: Board, player: Player, round_number: int = 1) -> None:
     # Loop until a valid action is executed
     while True:
         print("\n--- Din tur:", player.name)
@@ -86,7 +86,7 @@ def interactive_turn(board: Board, player: Player) -> None:
         parts = raw.split()
         cmd = parts[0].lower()
         if cmd in ('a','auto'):
-            res = auto_play_turn(board, player)
+            res = auto_play_turn(board, player, round_number)
             print(f"Auto: {res}")
             return
         if cmd in ('t','trotta'):
@@ -105,7 +105,7 @@ def interactive_turn(board: Board, player: Player) -> None:
                     print("Ogiltigt val.")
                     continue
             try:
-                res = perform_trotta(board, player, card)
+                res = perform_trotta(board, player, card, round_number)
                 print(f"Trotta: {res}")
                 return
             except ValueError as e:
@@ -195,7 +195,7 @@ def interactive_turn(board: Board, player: Player) -> None:
                 except Exception:
                     print("Ogiltigt val.")
                     continue
-            res = perform_build(board, player, target, card)
+            res = perform_build(board, player, target, card, round_number)
             print(f"Build: {res}")
             return
         if cmd in ('d','discard'):
@@ -238,8 +238,8 @@ class SimpleLearningAI:
         self.learning_rate = 0.2
         self.exploration = 0.15  # chance to explore
 
-    def select_action(self, board: Board):
-        candidates = enumerate_candidate_actions(board, self.player)
+    def select_action(self, board: Board, round_number: int = 1):
+        candidates = enumerate_candidate_actions(board, self.player, round_number)
         if not candidates:
             return None
         # Exploration
@@ -259,8 +259,8 @@ class SimpleLearningAI:
         self.values[action_category] = old + self.learning_rate * (reward - old)
 
 
-def ai_turn(board: Board, ai: SimpleLearningAI):
-    action = ai.select_action(board)
+def ai_turn(board: Board, ai: SimpleLearningAI, round_number: int = 1):
+    action = ai.select_action(board, round_number)
     if not action:
         return None
     result = action.execute()
@@ -271,22 +271,32 @@ def ai_turn(board: Board, ai: SimpleLearningAI):
 
 
 def play_round(round_index: int, board: Board, players: list[Player], ai: SimpleLearningAI | None, interactive: bool = False):
+    round_number = round_index + 1  # 1-based round number
     turn = 0
     while any(p.hand for p in players):
         current = players[turn % 2]
         if interactive and current.name == "Anna":
-            interactive_turn(board, current)
+            interactive_turn(board, current, round_number)
         else:
             if ai and current is ai.player:
-                res = ai_turn(board, ai)
+                res = ai_turn(board, ai, round_number)
             else:
-                res = auto_play_turn(board, current)
+                res = auto_play_turn(board, current, round_number)
             print(f"Auto ({current.name}): {res}")
         if not board.piles:
             current.tabbe += 1
         turn += 1
+
+    # Check if there are any builds left on the board (this should not happen!)
+    remaining_builds = board.list_builds()
+    if remaining_builds:
+        print("WARNING: Builds left on board at end of round!")
+        for build in remaining_builds:
+            print(f"  - {build.owner}'s build (value {build.value}, {len(build.cards)} cards)")
+        print("  These builds should have been captured during the round!")
+
     scores = score_round(players)
-    print(f"==== Round {round_index+1} Finished ====")
+    print(f"==== Round {round_number} Finished ====")
     print("Board empty:", len(board.piles) == 0)
     for p in players:
         print(f"{p.name} captured {len(p.captured)} cards, mulles: {[c.code() for c in p.mulles]}, tabbe={p.tabbe}")

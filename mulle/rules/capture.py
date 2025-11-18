@@ -32,6 +32,23 @@ def board_pile_value(pile: Pile) -> int:
         return pile.value
     return sum(c.value_on_board() for c in pile)
 
+def is_card_reserved_for_build(board: Board, player: Player, card: Card) -> Build | None:
+    """
+    Check if a card is reserved as the only capture card for a player's build.
+    Returns the build if the card is reserved, None otherwise.
+    """
+    card_hand_value = card.value_in_hand()
+
+    # Check each build owned by the player
+    for build in board.list_builds():
+        if build.owner == player.name and build.value == card_hand_value:
+            # Count how many cards in hand can capture this build
+            matching_cards = [c for c in player.hand if c.value_in_hand() == build.value]
+            # If this is the only card that can capture the build, it's reserved
+            if len(matching_cards) == 1 and matching_cards[0] is card:
+                return build
+    return None
+
 # Check if player may build (must own build or extend single pile) and have reservation card
 
 def can_build(board: Board, player: Player, base_pile: Pile, added_card: Card) -> bool:
@@ -60,6 +77,12 @@ def can_build(board: Board, player: Player, base_pile: Pile, added_card: Card) -
     if added_card.rank == "A" and target_value == 14:
         return False
 
+    # Check if the card being used to build is reserved for another build
+    reserved_build = is_card_reserved_for_build(board, player, added_card)
+    if reserved_build is not None:
+        # Cannot use this card to build - it's the only card that can capture another build
+        return False
+
     # Need reservation card matching new build value
     for c in player.hand:
         if c is not added_card and c.value_in_hand() == target_value:
@@ -68,10 +91,10 @@ def can_build(board: Board, player: Player, base_pile: Pile, added_card: Card) -
 
 # Create build
 
-def perform_build(board: Board, player: Player, base_pile: Pile, added_card: Card) -> ActionResult:
+def perform_build(board: Board, player: Player, base_pile: Pile, added_card: Card, round_number: int=1) -> ActionResult:
     # Locked builds cannot be modified (already checked in can_build)
     # Open builds can be modified by anyone
-    build = board.create_build(base_pile, added_card, owner=player.name)
+    build = board.create_build(base_pile, added_card, owner=player.name, created_round=round_number)
     player.remove_from_hand(added_card)
     return ActionResult(played=added_card, captured=[], mulle_pairs=[], build_created=True)
 
@@ -186,14 +209,43 @@ def perform_capture(board: Board, player: Player, played_card: Card, chosen: Lis
 # Discard
 
 def perform_discard(board: Board, player: Player, card: Card) -> ActionResult:
+    # Check if this card is reserved for a build
+    reserved_build = is_card_reserved_for_build(board, player, card)
+    if reserved_build is not None:
+        raise ValueError(f"Cannot discard {card.code()} - it's reserved to capture your {reserved_build.value}-build!")
+
+    # Check if player has a build with the same value as the card being discarded
+    # If so, add the card to that build (trotta)
+    card_value = card.value_on_board()
+    player_builds = [b for b in board.list_builds() if b.owner == player.name and b.value == card_value]
+
+    if player_builds:
+        # Add card to the first matching build (even if locked)
+        build = player_builds[0]
+        player.remove_from_hand(card)
+        build.add_trotta_card(card)
+        return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=False)
+
+    # Otherwise, normal discard
     player.remove_from_hand(card)
     board.add_card(card)
     return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=False)
 
 # Trotta: create a build by gathering all matching value singles and 2-card combinations
+# OR add a card to an existing build with same value (even if locked)
 
-def perform_trotta(board: Board, player: Player, card: Card) -> ActionResult:
+def perform_trotta(board: Board, player: Player, card: Card, round_number: int=1) -> ActionResult:
     target_value = card.value_on_board()
+
+    # First check if player already has a build with this value
+    player_builds = [b for b in board.list_builds() if b.owner == player.name and b.value == target_value]
+
+    if player_builds:
+        # Add card to existing build (allowed even if locked)
+        build = player_builds[0]
+        player.remove_from_hand(card)
+        build.add_trotta_card(card)
+        return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=False)
 
     # Find all single cards with exact value
     direct_singles = []
@@ -238,7 +290,7 @@ def perform_trotta(board: Board, player: Player, card: Card) -> ActionResult:
         board.remove_pile(pile)
 
     # Create locked build
-    new_build = Build(cards, owner=player.name, target_value=target_value, locked=True)
+    new_build = Build(cards, owner=player.name, target_value=target_value, locked=True, created_round=round_number)
     board.piles.append(new_build)
     player.remove_from_hand(card)
 
@@ -246,7 +298,7 @@ def perform_trotta(board: Board, player: Player, card: Card) -> ActionResult:
 
 # Heuristic priority: best combination with mulle > best largest combination > single identical (mulle) > single match > build > discard
 
-def auto_play_turn(board: Board, player: Player) -> ActionResult:
+def auto_play_turn(board: Board, player: Player, round_number: int=1) -> ActionResult:
     # Try each card for best combination capture
     best_combo: Tuple[int,int,List[Pile],Card, List[List[Card]]] | None = None  # (mulle_count, size, piles, card, mulles)
     for card in player.hand:
@@ -284,12 +336,12 @@ def auto_play_turn(board: Board, player: Player) -> ActionResult:
     for card in player.hand:
         for pile in list(board.piles):
             if can_build(board, player, pile, card):
-                return perform_build(board, player, pile, card)
+                return perform_build(board, player, pile, card, round_number)
 
     # Discard
     return perform_discard(board, player, player.hand[0])
 
-def enumerate_candidate_actions(board: Board, player: Player) -> List[CandidateAction]:
+def enumerate_candidate_actions(board: Board, player: Player, round_number: int=1) -> List[CandidateAction]:
     candidates: List[CandidateAction] = []
     # Capture combinations
     for card in list(player.hand):
@@ -316,7 +368,7 @@ def enumerate_candidate_actions(board: Board, player: Player) -> List[CandidateA
                 # Predicted reward modest (potential future capture); assign small heuristic value
                 reward = 1.5
                 def make_executor(card_local, pile_local):
-                    return lambda: perform_build(board, player, pile_local, card_local)
+                    return lambda: perform_build(board, player, pile_local, card_local, round_number)
                 candidates.append(CandidateAction('build', reward, make_executor(card, pile)))
     # Discard fallback (choose one representative)
     if player.hand:
