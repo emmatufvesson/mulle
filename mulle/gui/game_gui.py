@@ -51,6 +51,13 @@ class MulleGUI:
         self.current_player_idx = 0
         self.round_number = 0
         self.cumulative_scores = {"Anna": 0, "Bo": 0}
+        # Track who starts each omgång (0=Anna,1=Bo)
+        self.starting_player_idx = 0
+        # Omgång-tally (accumulate scores across 6 rounds before summing)
+        self.omgang_tally = {
+            "Anna": {"mulle_points": 0, "intake": 0, "tabbe": 0, "total": 0},
+            "Bo":   {"mulle_points": 0, "intake": 0, "tabbe": 0, "total": 0},
+        }
 
         # UI state
         self.selected_hand_card = None
@@ -177,14 +184,24 @@ class MulleGUI:
         self.players = [Player("Anna"), Player("Bo")]
         for p in self.players:
             p.add_to_hand(self.deck.draw_many(8))
-        self.current_player_idx = 0
+        # Start omgång with configured starter
+        self.current_player_idx = self.starting_player_idx
         self.round_number = 1
+        # Reset tallies
         self.cumulative_scores = {"Anna": 0, "Bo": 0}
+        self.omgang_tally = {
+            "Anna": {"mulle_points": 0, "intake": 0, "tabbe": 0, "total": 0},
+            "Bo":   {"mulle_points": 0, "intake": 0, "tabbe": 0, "total": 0},
+        }
         self.selected_hand_card = None
         self.action_mode = None
         self.update_display()
+        # If Bo starts, auto-play his first move after load
+        if self.current_player_idx == 1:
+            self.root.after(800, self.bo_auto_play)
 
     def new_round(self):
+        # Deal 8 cards to each player (board remains as-is between rounds)
         if self.deck.remaining() < 16:
             messagebox.showinfo("Slut på kort", "Inte nog kort för en ny rond!")
             return
@@ -194,12 +211,14 @@ class MulleGUI:
             p.mulles.clear()
             p.tabbe = 0
             p.add_to_hand(self.deck.draw_many(8))
-        self.current_player_idx = 0
+        # Each round in an omgång starts with the omgång's starter
+        self.current_player_idx = self.starting_player_idx
         self.round_number += 1
         self.selected_hand_card = None
         self.action_mode = None
         self.update_display()
-
+        if self.current_player_idx == 1:
+            self.root.after(800, self.bo_auto_play)
 
     def set_action(self, mode):
         self.action_mode = mode
@@ -329,7 +348,9 @@ class MulleGUI:
     def update_scores(self):
         anna_total = self.cumulative_scores["Anna"]
         bo_total = self.cumulative_scores["Bo"]
-        self.score_label.config(text=f"Rond {self.round_number} | Anna: {anna_total} | Bo: {bo_total}")
+        anna_omg = self.omgang_tally["Anna"]["total"]
+        bo_omg = self.omgang_tally["Bo"]["total"]
+        self.score_label.config(text=f"Rond {self.round_number} | Omgång: Anna {anna_omg} • Bo {bo_omg} | Total: Anna {anna_total} • Bo {bo_total}")
 
     def update_bo_info(self):
         bo = self.players[1]
@@ -488,42 +509,68 @@ class MulleGUI:
                 f"Följande byggen togs inte in under ronden:\n\n{build_info}\n\n"
                 f"OBS: Dessa byggen ska ha tagits in! Kontrollera reglerna."
             )
+        # Compute this round's scores and accumulate into omgång-tally
+        round_scores = score_round(self.players)
+        for s in round_scores:
+            self.omgang_tally[s.player.name]["mulle_points"] += s.mulle_points
+            self.omgang_tally[s.player.name]["intake"] += s.intake
+            self.omgang_tally[s.player.name]["tabbe"] += s.tabbe
+            self.omgang_tally[s.player.name]["total"] += s.total
+        # Update header with current tallies
+        self.update_scores()
 
-        scores = score_round(self.players)
-        # Don't accumulate scores yet - only after all 7 rounds
-        # Just show round results
-
-        result_text = "\n".join([
-            f"=== Rond {self.round_number} Slut ===",
-            f"Anna: {len(self.players[0].captured)} kort intagna",
-            f"Bo: {len(self.players[1].captured)} kort intagna",
-            f"\nFortsätt till nästa rond..."
-        ])
-
-        messagebox.showinfo("Rond slut", result_text)
-
-        # Clear board after last round
-        if self.round_number >= 7:  # After 7 rounds, calculate final scores
-            self.calculate_final_scores()
+        # End-of-omgång check: 6 rounds
+        if self.round_number >= 6:
+            self.calculate_final_scores()  # will use the accumulated tally
+            # Start next omgång automatically: toggle starter, reshuffle and redeal
+            self.start_next_omgang()
+            return
         else:
-            # Continue to next round
             self.new_round()
 
     def calculate_final_scores(self):
-        scores = score_round(self.players)
-        for s in scores:
-            self.cumulative_scores[s.player.name] += s.total
-
+        # Build summary from accumulated omgång_tally
+        a = self.omgang_tally["Anna"]
+        b = self.omgang_tally["Bo"]
+        # Add to session cumulative totals
+        self.cumulative_scores["Anna"] += a["total"]
+        self.cumulative_scores["Bo"] += b["total"]
         result_text = "\n".join([
-            f"=== SLUTRESULTAT EFTER 7 RONDER ===",
-            f"Anna: {scores[0].mulle_points}m + {scores[0].intake}i + {scores[0].tabbe}t = {scores[0].total}",
-            f"Bo: {scores[1].mulle_points}m + {scores[1].intake}i + {scores[1].tabbe}t = {scores[1].total}",
-            f"\nTotal: Anna {self.cumulative_scores['Anna']} - Bo {self.cumulative_scores['Bo']}"
+            f"=== SLUTRESULTAT EFTER 6 RONDER ===",
+            f"Anna: {a['mulle_points']}m + {a['intake']}i + {a['tabbe']}t = {a['total']}",
+            f"Bo: {b['mulle_points']}m + {b['intake']}i + {b['tabbe']}t = {b['total']}",
+            f"\nKumulativt: Anna {self.cumulative_scores['Anna']} • Bo {self.cumulative_scores['Bo']}"
         ])
+        messagebox.showinfo("Omgång slut", result_text)
 
-        messagebox.showinfo("Spelet slut", result_text)
-        self.board.piles.clear()
+    def start_next_omgang(self):
+        # Toggle who starts the omgång
+        self.starting_player_idx = 1 - self.starting_player_idx
+        # Fresh deck and board: only initial deal puts 8 cards on board
+        self.deck = Deck()  # new shuffled deck
+        self.board = Board()
+        for _ in range(8):
+            self.board.add_card(self.deck.draw())
+        # Reset per-round state and deal new hands
+        for p in self.players:
+            p.hand.clear()
+            p.captured.clear()
+            p.mulles.clear()
+            p.tabbe = 0
+            p.add_to_hand(self.deck.draw_many(8))
+        # Reset round and omgång tally
+        self.round_number = 1
+        self.omgang_tally = {
+            "Anna": {"mulle_points": 0, "intake": 0, "tabbe": 0, "total": 0},
+            "Bo":   {"mulle_points": 0, "intake": 0, "tabbe": 0, "total": 0},
+        }
+        self.current_player_idx = self.starting_player_idx
+        self.selected_hand_card = None
+        self.action_mode = None
         self.update_display()
+        # If Bo starts this omgång, auto-play his first move
+        if self.current_player_idx == 1:
+            self.root.after(800, self.bo_auto_play)
 
 
 def main():

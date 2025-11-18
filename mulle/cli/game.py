@@ -220,6 +220,8 @@ def interactive_turn(board: Board, player: Player, round_number: int = 1) -> Non
 
 
 def deal_hands(deck: Deck, players: list[Player]):
+    if deck.remaining() < 16:
+        raise RuntimeError("Inte nog kort kvar i leken för att dela ut händer (behöver 16)")
     for p in players:
         p.hand.clear()
         p.add_to_hand(deck.draw_many(8))
@@ -270,9 +272,9 @@ def ai_turn(board: Board, ai: SimpleLearningAI, round_number: int = 1):
     return result
 
 
-def play_round(round_index: int, board: Board, players: list[Player], ai: SimpleLearningAI | None, interactive: bool = False):
+def play_round(round_index: int, board: Board, players: list[Player], ai: SimpleLearningAI | None, starter_idx: int = 0, interactive: bool = False):
     round_number = round_index + 1  # 1-based round number
-    turn = 0
+    turn = starter_idx  # who starts this round
     while any(p.hand for p in players):
         current = players[turn % 2]
         if interactive and current.name == "Anna":
@@ -287,7 +289,6 @@ def play_round(round_index: int, board: Board, players: list[Player], ai: Simple
             current.tabbe += 1
         turn += 1
 
-    # Check if there are any builds left on the board (this should not happen!)
     remaining_builds = board.list_builds()
     if remaining_builds:
         print("WARNING: Builds left on board at end of round!")
@@ -306,42 +307,57 @@ def play_round(round_index: int, board: Board, players: list[Player], ai: Simple
 
 
 def play_session(seed: int, rounds: int, interactive: bool):
+    """
+    rounds = number of omgångar; each omgång has exactly 6 rounds.
+    Each omgång uses a fresh 2-deck shoe (104 cards): 8 to board initially + 6*16 to hands = 104 exactly.
+    The starting player alternates between omgångar.
+    """
     random.seed(seed)
-    deck = Deck(seed=seed)
-    board = setup_initial_board(deck)  # only first round gets 8 board cards
     players = [Player("Anna"), Player("Bo")]
     ai = SimpleLearningAI(players[1])  # Bo as AI
     cumulative = {p.name: 0 for p in players}
-    round_results = []
-    for r in range(rounds):
-        if deck.remaining() < 16:  # need 8+8 for hands
-            print("Avbryter: för få kort kvar för ytterligare rond.")
-            break
-        deal_hands(deck, players)
-        scores = play_round(r, board, players, ai, interactive if r == 0 else interactive)
-        for s in scores:
-            cumulative[s.player.name] += s.total
-        # Rensa per-rond data (captured/mulles/tabbe) men behåll board TILLS sista ronden klar
-        for p in players:
-            p.captured.clear()
-            p.mulles.clear()
-            p.tabbe = 0
-        round_results.append(scores)
-    # Clear board AFTER final round per requirement
-    board.piles.clear()
+    starting_player_idx = 0  # 0=Anna, 1=Bo
+
+    all_omgang_results = []
+
+    for omg in range(rounds):
+        print(f"==== Startar Omgång {omg+1} (startar: {players[starting_player_idx].name}) ====")
+        # Fresh deck and initial board with 8 cards
+        deck = Deck(seed=seed + omg)
+        board = setup_initial_board(deck)
+
+        omgang_results = []
+        # Play 6 rounds per omgång
+        for r in range(6):
+            deal_hands(deck, players)
+            scores = play_round(r, board, players, ai, starter_idx=starting_player_idx, interactive=interactive if r == 0 and omg == 0 else False)
+            for s in scores:
+                cumulative[s.player.name] += s.total
+            # Clear per-round data but keep board until end of omgång
+            for p in players:
+                p.captured.clear()
+                p.mulles.clear()
+                p.tabbe = 0
+            omgang_results.append(scores)
+        # End of omgång: clear board
+        board.piles.clear()
+        print(f"==== Omgång {omg+1} klar. Bord rensat. ====")
+        # Alternate starter for next omgång
+        starting_player_idx = 1 - starting_player_idx
+        all_omgang_results.append(omgang_results)
+
     print("==== Session Summary ====")
-    print("Bordet rensat efter sista ronden. Högar kvar:", len(board.piles))
     for name, total in cumulative.items():
-        print(f"{name}: total efter {len(round_results)} ronder = {total}")
+        print(f"{name}: kumulativt efter {rounds} omgång(ar) = {total}")
     print("AI-värden:", ai.values)
-    return round_results, cumulative, board, ai
+    return all_omgang_results, cumulative, board, ai
 
 
 def main():
     parser = argparse.ArgumentParser(description="Mulle prototype")
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--interactive', action='store_true', help='Interactive mode for Anna')
-    parser.add_argument('--rounds', type=int, default=1, help='Number of rounds to play in session')
+    parser.add_argument('--interactive', action='store_true', help='Interactive mode for Anna (first round of first omgång)')
+    parser.add_argument('--rounds', type=int, default=1, help='Number of omgångar to play (each has 6 rounds)')
     args = parser.parse_args()
     play_session(seed=args.seed, rounds=args.rounds, interactive=args.interactive)
 
