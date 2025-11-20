@@ -66,156 +66,108 @@ Kommentar: Anledningen till denna regel är att spelaren som bygger både kan sk
   - 2 p för: SP 2, SP A, RU 10.
 - Om en spelares intagningspoäng > 20 → poängen som överstiger 20 dubblas och läggs till spelarens mull/tabbe-poäng. Kvittning sker enligt regelbokens avsnitt om rund- och omgångsberäkning.
 
+# Mulle — Regelbok
+
+Version: Syncad med kodbas per 2025-11-20.
+
+## Notation
+Kort skrivs som "FÄRG VALÖR" (t.ex. `KL 5`). Färger:
+- KL = Klöver
+- SP = Spader
+- HJ = Hjärter
+- RU = Ruter
+
+## Översikt
+- 2 spelare, två blandade standardlekar (duplikat möjliggör mulles).
+- Aktuell implementation kör EN rond (8 kort per spelare); fler ronder/omgångar enligt klassisk regel (7 ronder * 2 omgångar) är ännu ej implementerat.
+- På en tur måste spelaren spela exakt ett kort och utför då en (1) handling: Capture (intag), Build (bygga), Trotta (specialbygg), eller Discard (släng / värde-"feed" till eget bygge).
+
+## Specialvärden i hand vs bord
+| Kort | Värde på bord | Värde i hand |
+|------|---------------|--------------|
+| A    | 1             | 14           |
+| SP 2 | 2             | 15           |
+| RU 10| 10            | 16           |
+Övriga kort har samma värde på bord och i hand (2–13 resp. J=11, Q=12, K=13).
+
+## Capture (Intag)
+När ett kort spelas kan spelaren ta in EN kombination av högar vars sammanlagda värde (summerat med kortets HAND-värde) matchar HAND-värdet på det spelade kortet. Algoritmen i `capture.generate_capture_combinations`:
+1. Om exakt ett identiskt single-kort (samma färg + valör) finns: endast den mullen erbjuds (prioriterad regel).
+2. Om värdet är special (14,15,16) får man bara ta in builds med exakt det värdet (inga summekombinationer av fria kort).
+3. Annars beräknas alla subset-summor av single-piles och builds vars värden summerar till målvärdet; en maximal mängd disjunkta delmängder plus alla direkta matcher väljs (heuristik: maximerar antal tagna kort).
+4. Alla kort i valda högar + spelade kortet förs till spelarens `captured`.
+
+### Mulle-detektering
+Efter intag räknas antal (färg,valör)-par bland intagna + spelat kort. Varje exakt par (antal=2) ger en mulle: ett av korten förs till `mulles` och ger poäng lika med kortets rang (A=14, J=11, Q=12, K=13, sifferkort = talvärdet). Fler än två identiska genererar flera par (ex. fyra identiska ger två mulles).
+
+## Build (Skapa / Utöka bygge)
+Bygg sker genom att lägga ett handkort på antingen:
+1. Ett single-pile (1 kort) för att skapa nytt build-värde = summan av kortens BORD-värden.
+2. Ett öppet build som ännu inte är låst.
+
+Regler kontrolleras i `can_build`:
+- Man får inte bygga på en multi-kort vanlig hög (endast single eller build).
+- Man får inte ändra (bygga på) ett låst build.
+- Man får inte skapa/utöka till ett värde som motståndaren redan äger som build.
+- Specialrestriktion: kan ej skapa värden 14 (A), 15 (SP 2), 16 (RU 10) direkt via motsvarande specialkortkombination (de reserveras för capture-scenarier).
+- Måste ha ett "reservation card" i hand (ett annat kort vars HAND-värde matchar nya build-värdet) för att säkerställa framtida möjlighet att ta in.
+- Ett kort som är enda möjliga capture-kort för ett eget befintligt build är reserverat och kan inte användas för att bygga annat.
+
+### Absorption vid build-skapande
+`Board.create_build` utför följande:
+1. Bas-högen tas bort och kombineras med det spelade kortet.
+2. Alla single-piles och alla 2-korts-piles/builds på bordet samlas som kandidater.
+3. Direkta matchningar (värde == build-värdet) tas alltid med.
+4. En backtracking-algoritm väljer disjunkta subsets av kandidater vars SUMMA == build-värdet för att maximera antal absorberade högar.
+5. Alla korten läggs in i byggestacken.
+6. Build låses om det nu innehåller fler än 2 kort eller om absorption skedde.
+
+Resultat: ett 2-korts build utan absorption förblir öppet; alla större eller sammanslagna builds blir låsta.
+
+## Låsta vs öppna builds
+- Öppet: kan byggas vidare av ägaren (ingen annan får lägga på) så länge det är olåst.
+- Låst: kan inte ändras, men kan få kort av samma värde via Trotta/"feed" (se nedan). Kan tas in av ANY spelare som spelar ett kort med exakt HAND-värdet.
+
+## Trotta
+Trotta-action (special): spela ett kort vars BORD-värde = målvärdet du vill konsolidera.
+1. Om du redan har ett build med det värdet: kortet adderas (`add_trotta_card`), buildet låses (om inte redan låst).
+2. Annars: alla single-piles med exakt BORD-värdet, alla 2-korts-piles/builds med total BORD-summa = värdet, samt alla par av single-piles som tillsammans SUMMERAR till värdet absorberas. Ett nytt LÅST build skapas.
+Trotta kan alltså skapa låst build utan krav på reservationskort.
+
+## Discard (Släng / Feed)
+Om inget capture/build är möjligt (eller valt) läggs kortet som discard:
+- Om spelaren äger ett build med samma BORD-värde som kortet läggs kortet in i buildet via trotta-feed (även låsta builds accepterar detta) och låsningen kvarstår.
+- Annars placeras kortet som ny single-pile på bordet.
+
+## Poäng
+- Mulle-poäng: summa av alla mulle-kortens rangvärden (A=14, J=11, Q=12, K=13, sifferkort = talet).
+- Tabbe: 1 poäng till den som tar sista kortet på tomt bord.
+- Intagningspoäng (scoring.py):
+  - 1 p: SP 3–13 + A; RU A; HJ A; KL A.
+  - 2 p: SP 2, SP A, RU 10.
+- Bonus: Intake > 20 ger (intake - 20)*2 extra.
+- Total: mulle + tabbe + intake + bonus.
+
+## Automatiserad turordning (heuristik)
+`auto_play_turn` prioriterar: bästa capture-kombination (flest mulles, sedan flest kort) → identiskt single (mulle) → single match → build → discard.
+
+## Implementationsstatus / Ej klart
+- Fler ronder & omgångar: inte implementerat ännu.
+- Interaktiv input: ej (automatiskt heuristiskt spel).
+- Avancerade strategier: reservationslogik & enkel heuristik finns; ingen djup AI.
+
+## Tester (urval)
+- `test_build.py`: absorption & låsning.
+- `test_capture_locked_build.py`: capture av låst build.
+- `test_mulle.py`: mulle-par.
+- Övriga tester täcker specialkort, integritet och lärande.
+
+## Framtida utvidgning
+- Full omgångscykel (7 ronder * 2 omgångar) med kumulativ poäng.
+- Mer avancerad AI-viktning (risk/nytta av öppna vs låsta builds).
+- UI (CLI + GUI) med val av handling.
+- Replay/loggning av drag.
+
 ---
-
-## Exempelomgång — uppdaterat med låsningsregeln (hel rond, alla 8 kort spelas)
-Notera: vi använder två kortlekar, så identiska kort (samma färg och valör) kan förekomma.
-
-Start (notation som KL/SP/HJ/RU):
-- Bord (8 synliga kort):
-  1) SP 5
-  2) SP 5
-  3) KL 9
-  4) RU 10
-  5) HJ A
-  6) KL 5
-  7) RU 3
-  8) KL 2
-
-- Anna (hand, 8 kort): KL 9, SP 6, SP 3, KL K, HJ 8, RU 4, KL 4, KL 7
-- Bo (hand, 8 kort): RU 10, RU 6, HJ Q, SP 2, KL Q, RU 5, SP 7, HJ J
-
-Spel (turn-by-turn, ett kort per tur):
-
-Drag 1 — Anna
-- Val: Anna kan ta in KL 9-mulle (KL 9 på bord + KL 9 i hand) eller välja annat.
-- Handling: Anna spelar KL 9 och tar in KL 9 från bordet.
-- Effekt: en KL 9 läggs i Annas mulle-hög (9 p). Övriga intagna (om några) hamnar i hennes intagna-hög.
-- Anna kvar: 7 kort.
-
-Drag 2 — Bo
-- Val: RU 10 ligger på bordet och Bo har RU 10 och RU 6 på hand vilket innebär att han kan bygga 16.
-- Handling: Bo spelar RU 6 på RU 10 och skapar ett bygge värde 16.
-- Effekt: bygget innehåller RU 10 + RU 6. Eftersom det bara finns 2 kort av varje och Bo har den andra RU 10 i hand, vet han att anna inte kan ta in bygget, men hon kan bygga om det.
-- Bo kvar: 7 kort.
-
-Drag 3 — Anna
-- Anna har SP 6, SP 3, KL K, HJ 8, RU 4, KL 4, KL 7 kvar.
-- Anna bygger om 16-byget genom att spela KL K på det så att bygget nu är värt 3.
-- Eftersom det finns andra kort och kortkombinationer på bordet som blir 3 så konsolideras dessa i bygget:
-  - RU 3 (från bordet) läggs till bygget.
-  - KL 2 och HJ A (från bordet) läggs till eftersom de också blir 3 tillsammans (2+1).
-  - Bygget är nu låst, och består av KL K + RU 6 + RU 10 + SP 3 + KL 2 + HJ A.
-  - Anna kvar: 6 kort.
-
-Drag 4 — Bo
-- Bo har RU 10, HJ Q, SP 2, KL Q, RU 5, SP 7, HJ J kvar.
-- Bo tar in SP 5-mullen och KL 5 från bordet genom att spela RU 5 från handen.
-- En SP 5 läggs i Bo's mulle-hög (5 p). Övriga intagna kort hamnar i hans intagna-hög.
-- Bo kvar: 6 kort.
-
-Drag 5 — Anna
-- Anna har SP 6, SP 3, HJ 8, RU 4, KL 4, KL 7 kvar.
-- Eftersom det bara är hennes bygge kvar på bordet så måste hon ta in det genom att spela SP 3 från handen.
-- Anna får en tabbe (1 p) för att hon tar in det sista kortet på bordet.
-- ett kort från bygget läggs uppochner i hennes mulle-hög, resten i intagna-högen.
-- Anna kvar: 5 kort.
-
-Drag 6 — Bo
-- Bo har RU 10, HJ Q, SP 2, KL Q, SP 7, HJ J kvar.
-- Bo kan inte ta in något eller bygga något (eftersom bordet är tomt efter annas drag).
-- Bo slänger RU 10 på bordet.
-- Bo kvar: 5 kort.
-
-Drag 7 — Anna
-- Anna har SP 6, HJ 8, RU 4, KL 4, KL 7 kvar.
-- Anna kan inte ta in något eller bygga något (eftersom bordet bara har RU 10 som inte matchar något i hennes hand).
-- Anna slänger RU 4 på bordet.
-- Anna kvar: 4 kort.
-
-Drag 8 — Bo
-- Bo har HJ Q, SP 2, KL Q, SP 7, HJ J kvar.
-- Bo lägger sin HJ J på RU 4 på bordet och bygger 15.
-- Eftersom inga andra kort på bordet kan kombineras till 15 så är bygget inte låst
-- Bo kvar: 4 kort.
-
-Drag 9 — Anna
-- Anna har SP 6, HJ 8, KL 4, KL 7 kvar.
-- Anna bygger om 15-byget genom att spela KL 7 på det så att bygget nu är värt 8.
-- Eftersom inga andra kort på bordet kan kombineras till 8 så är bygget inte låst.
-- Anna kvar: 3 kort.
-
-Drag 10 — Bo
-- Bo har HJ Q, SP 2, KL Q, SP 7 kvar.
-- Bo bygger tillbaka 8-bygget genom att spela SP 7 på det så att bygget nu är värt 15 igen.
-- Eftersom inga andra kort på bordet kan kombineras till 15 så är bygget inte låst.
-- Bo kvar: 3 kort.
-
-Drag 11 — Anna
-- Anna har SP 6, HJ 8, KL 4 kvar.
-- Anna kan inte göra något åt 15-bygget, och hon kan inte ta in RU 10, så hon slänger KL 4 på bordet.
-- Anna kvar: 2 kort.
-
-Drag 12 — Bo
-- Bo har HJ Q, SP 2 och KL Q kvar.
-- Bo tar in 15-bygget genom att spela SP 2 från handen.
-- alla kort från bygget läggs i hans intagna-hög.
-- Bo kvar: 2 kort.
-
-Drag 13 — Anna
-- Anna har SP 6 och HJ 8 kvar.
-- Anna kan inte ta in något eller bygga något, så hon slänger HJ 8 på bordet.
-- Anna kvar: 1 kort.
-
-Drag 14 — Bo
-- Bo har HJ Q och KL Q kvar.
-- Bo lägger KL Q på HJ 8 och KL 4 på bordet och bygger på så vis 12, låst.
+Detta dokument är nu synkroniserat med den faktiska kodlogiken. Återkoppla gärna om ytterligare klargöranden behövs.
 - Bo kvar: 1 kort.
-
-Drag 15 — Anna
-- Anna har SP 6 kvar.
-- Anna kan inte ta in något eller bygga något, så hon slänger SP 6 på bordet.
-- Anna kvar: 0 kort.
-
-Drag 16 — Bo
-- Bo har HJ Q kvar.
-- Bo tar in sitt 12-bygge genom att spela HJ Q från handen.
-- alla kort från bygget läggs i hans intagna-hög.
-- Bo kvar: 0 kort.
-
-På bordet finns spader 6 kvar till nästa rond. 
-
-
-
-
-### Datastrukturer
-- Card: hanterar värden på bord (A=1) och i hand (A=14, SP 2=15, RU 10=16).
-- Deck: två standardlekar blandas.
-- Board: lista av högar (enkla listor av kort) och låsta byggen (klass Build).
-- Build: högar med kort som låses när ett värde upprepas och läggs till högen. 
-- Player: spårar hand, intagna kort, mulles, tabbe.
-
-### Handlingar (automatisk turordning i prototyp)
-Prioritetsordning per tur: ta låst bygge (matchande handvärde) → ta enkelkort (inkl. mulle-scenario) → skapa bygge → släng.
-
-### Förenklingar / Antaganden
-- Endast single-card capture implementerad (inga komplexa summor eller multi-pile intag utöver låsta byggen).
-- Mulle uppstår bara vid exakt två identiska kort i samma intagstillfälle (fler än två identiska reduceras till ett par för poängräkning).
-- Poäng för ess i mulle antas vara 14 (ej helt specificerat i kortversionen).
-- Inga flera ronder/omgångar ännu; endast en rond körs via `python -m mulle.cli.game`.
-- Ingen mänsklig interaktiv input; drag görs automatiskt enligt heuristik.
-
-### Tester
-Finns under `tests/`:
-- `test_build.py`: verifierar konsolidering och låsning.
-- `test_capture_locked_build.py`: verifierar att låst bygge kan tas in.
-- `test_mulle.py`: verifierar mulle-scenario (ett kort på bord + identiskt i hand).
-
-### Nästa steg / Möjliga utbyggnader
-- Interaktiv CLI där spelaren väljer åtgärd.
-- Fler intagsscenarier (kombinationssummor, flera högar samtidigt).
-- Full flerstegs poängberäkning över 7 ronder * 2 omgångar.
-- Loggning / replay av turer.
-- Strategi-modul för AI (viktning av bygge vs capture).
-
---- End Appendix ---
