@@ -69,13 +69,7 @@ def can_build(board: Board, player: Player, base_pile: Pile, added_card: Card) -
     if isinstance(base_pile, Build) and base_pile.locked:
         return False
 
-    # Special cards restriction for building to 14/15/16 from hand
-    if added_card.suit == "RU" and added_card.rank == "10" and target_value == 16:
-        return False
-    if added_card.suit == "SP" and added_card.rank == "2" and target_value == 15:
-        return False
-    if added_card.rank == "A" and target_value == 14:
-        return False
+    # Removed special-card build restriction: values 14 (A), 15 (SP 2), 16 (RU 10) are now allowed to be built.
 
     # Check if the card being used to build is reserved for another build
     reserved_build = is_card_reserved_for_build(board, player, added_card)
@@ -104,20 +98,16 @@ def generate_capture_combinations(board: Board, card: Card) -> List[List[Pile]]:
     target = card.value_in_hand()
     piles = list(board.piles)
     n = len(piles)
+    # Special values (14=A, 15=SP 2, 16=RU 10) may ONLY be captured via an existing build of that value.
+    # Identical single-card capture does NOT apply to these.
+    if target in [14, 15, 16]:
+        matching_builds = [p for p in piles if isinstance(p, Build) and p.value == target]
+        return [matching_builds] if matching_builds else []
 
-    # Rule: single identical mulle capture only (when exactly one identical single on board)
+    # Normal identical single capture (non-special values): if exactly one identical single exists return that as sole option.
     identical_single = [p for p in piles if not isinstance(p, Build) and len(p)==1 and p[0].code()==card.code()]
     if len(identical_single) == 1:
         return [[identical_single[0]]]
-
-    # NEW: Specialvärden 14, 15, 16 can ONLY be captured if a build exists with that value
-    if target in [14, 15, 16]:
-        # Only allow capturing builds with exact value
-        matching_builds = [p for p in piles if isinstance(p, Build) and p.value == target]
-        if matching_builds:
-            return [matching_builds]  # Return all matching builds
-        else:
-            return []  # Cannot capture special values without a build
 
     values = [board_pile_value(p) for p in piles]
 

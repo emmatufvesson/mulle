@@ -19,7 +19,7 @@ print(f"Can build KL 6 + RU 10 with only one RU 10? {can}")
 assert not can, "Should NOT be able to build without reservation card"
 print("✓ PASS: Cannot build without reservation\n")
 
-print("=== Test: CANNOT build WITH RU 10 from hand even with two ===")
+print("=== Test: CAN build WITH RU 10 from hand given reservation ===")
 board2 = Board()
 kl6_2 = Card("KL","6",2)
 board2.add_card(kl6_2)
@@ -30,9 +30,9 @@ ru10_b = Card("RU","10",4)  # Second RU 10 as reservation
 player2.add_to_hand([ru10_a, ru10_b])
 
 can2 = can_build(board2, player2, [kl6_2], ru10_a)
-print(f"Can build KL 6 + RU 10 (from hand) even with TWO RU 10s? {can2}")
-assert not can2, "Should NOT be able to build WITH RU 10 from hand"
-print("✓ PASS: Cannot use RU 10 from hand to build\n")
+print(f"Can build KL 6 + RU 10 (from hand) with TWO RU 10s (one reservation)? {can2}")
+assert can2, "Should be able to build 16 when reservation card present"
+print("✓ PASS: Can build 16 with RU 10 + reservation\n")
 
 print("=== Test: CAN build ON RU 10 (already on board) ===")
 board2b = Board()
@@ -123,6 +123,6 @@ print("✓ SP 2 (15): Cannot capture without build\n")
 
 print("="*50)
 print("ALL TESTS PASSED!")
-print("Special value rule verified: 14/15/16 ONLY via builds!")
+print("Special value rule verified: 14/15/16 capture ONLY via builds; building these values allowed with reservation.")
 print("="*50)
 
