@@ -1,7 +1,9 @@
 from ..models.player import Player
 
-INTAKE_POINTS_1 = {"SP": list(map(str, range(3,14))) + ["A"], "RU": ["A"], "HJ": ["A"], "KL": ["A"]}
-INTAKE_POINTS_2 = {"SP": ["2", "A"], "RU": ["10"],}
+# 1 point cards: SP 3-K, RU A, KL A, HJ A
+INTAKE_POINTS_1 = {"SP": ["3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"], "RU": ["A"], "HJ": ["A"], "KL": ["A"]}
+# 2 point cards: SP 2, SP A, RU 10
+INTAKE_POINTS_2 = {"SP": ["2", "A"], "RU": ["10"]}
 
 def intake_points(player: Player) -> int:
     pts = 0

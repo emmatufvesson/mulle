@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk, font
 from ..models.deck import Deck
 from ..models.board import Board
+from ..models.build import Build
 from ..models.player import Player
 from ..rules.capture import (auto_play_turn, generate_capture_combinations,
                              perform_capture, can_build, perform_build,
@@ -127,14 +128,27 @@ class MulleGUI:
         self.hand_canvas = tk.Canvas(hand_frame, bg="#2d5016", height=140, highlightthickness=0)
         self.hand_canvas.pack(fill=tk.X, padx=5, pady=5)
 
-        # Bo's info frame
-        bo_frame = tk.LabelFrame(self.root, text="🤖 Bo (AI)", font=("Arial", 10, "bold"),
-                                bg="#1a3d0a", fg="white", relief=tk.RIDGE, bd=2)
-        bo_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Score details frame (side by side for both players)
+        score_detail_frame = tk.Frame(self.root, bg="#2d5016")
+        score_detail_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        self.bo_label = tk.Label(bo_frame, text="Kort i hand: 0 | Intagna: 0",
-                                font=("Arial", 10), bg="#2d5016", fg="white")
-        self.bo_label.pack(padx=5, pady=3)
+        # Anna's score detail
+        anna_score_frame = tk.LabelFrame(score_detail_frame, text="👤 Anna - Poäng", font=("Arial", 10, "bold"),
+                                        bg="#1a3d0a", fg="white", relief=tk.RIDGE, bd=2)
+        anna_score_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+
+        self.anna_score_label = tk.Label(anna_score_frame, text="Mullar: 0\nTabbe: 0\nIntag: 0\nBonus: 0\n────\nTotalt: 0",
+                                        font=("Arial", 9), bg="#2d5016", fg="white", justify=tk.LEFT)
+        self.anna_score_label.pack(padx=5, pady=3)
+
+        # Bo's score detail
+        bo_score_frame = tk.LabelFrame(score_detail_frame, text="🤖 Bo - Poäng", font=("Arial", 10, "bold"),
+                                      bg="#1a3d0a", fg="white", relief=tk.RIDGE, bd=2)
+        bo_score_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
+
+        self.bo_score_label = tk.Label(bo_score_frame, text="Mullar: 0\nTabbe: 0\nIntag: 0\nBonus: 0\n────\nTotalt: 0",
+                                      font=("Arial", 9), bg="#2d5016", fg="white", justify=tk.LEFT)
+        self.bo_score_label.pack(padx=5, pady=3)
 
     def draw_card(self, canvas, x, y, card, width=70, height=100, selected=False):
         """Draw a playing card with proper graphics"""
@@ -241,7 +255,6 @@ class MulleGUI:
         self.draw_board()
         self.draw_hand()
         self.update_scores()
-        self.update_bo_info()
 
     def draw_board(self):
         self.board_canvas.delete("all")
@@ -351,10 +364,38 @@ class MulleGUI:
         anna_omg = self.omgang_tally["Anna"]["total"]
         bo_omg = self.omgang_tally["Bo"]["total"]
         self.score_label.config(text=f"Rond {self.round_number} | Omgång: Anna {anna_omg} • Bo {bo_omg} | Total: Anna {anna_total} • Bo {bo_total}")
+        
+        # Update detailed score breakdowns
+        a_tally = self.omgang_tally["Anna"]
+        b_tally = self.omgang_tally["Bo"]
+        
+        # Calculate bonus for each player
+        a_bonus = (a_tally["intake"] - 20) * 2 if a_tally["intake"] > 20 else 0
+        b_bonus = (b_tally["intake"] - 20) * 2 if b_tally["intake"] > 20 else 0
+        
+        # Get mulle card details
+        anna_mulles = self.players[0].mulles if self.players else []
+        bo_mulles = self.players[1].mulles if self.players else []
+        anna_mulle_text = ", ".join(c.code() for c in anna_mulles) if anna_mulles else "inga"
+        bo_mulle_text = ", ".join(c.code() for c in bo_mulles) if bo_mulles else "inga"
+        
+        self.anna_score_label.config(text=f"Mullar ({a_tally['mulle_points']}p): {anna_mulle_text}\n"
+                                          f"Tabbe: {a_tally['tabbe']}p\n"
+                                          f"Intag: {a_tally['intake']}p\n"
+                                          f"Bonus: {a_bonus}p\n"
+                                          f"────────\n"
+                                          f"Totalt: {a_tally['total']}p")
+        
+        self.bo_score_label.config(text=f"Mullar ({b_tally['mulle_points']}p): {bo_mulle_text}\n"
+                                        f"Tabbe: {b_tally['tabbe']}p\n"
+                                        f"Intag: {b_tally['intake']}p\n"
+                                        f"Bonus: {b_bonus}p\n"
+                                        f"────────\n"
+                                        f"Totalt: {b_tally['total']}p")
 
     def update_bo_info(self):
-        bo = self.players[1]
-        self.bo_label.config(text=f"Kort i hand: {len(bo.hand)} | Intagna: {len(bo.captured)}")
+        # Removed - now handled in score panels
+        pass
 
     def on_hand_click(self, idx):
         if self.current_player_idx != 0:  # Not Anna's turn
@@ -402,8 +443,52 @@ class MulleGUI:
             messagebox.showwarning("Ogiltigt drag", "Kan inte bygga här!")
             return
 
+        # Check if rebuilding an open build - if so, ask for up/down choice
+        declared_value = None
+        if isinstance(pile, Build) and not pile.locked:
+            current_value = pile.value
+            card_board_value = card.value_on_board()
+            value_up = current_value + card_board_value
+            value_down = abs(current_value - card_board_value)
+            
+            # Create dialog to ask up or down
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Bygg upp eller ner")
+            dialog.geometry("300x150")
+            dialog.configure(bg="#2d5016")
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            tk.Label(dialog, text=f"Nuvarande bygge: {current_value}\nKort: {card.code()} (värde {card_board_value})\n\nVälj nytt värde:",
+                    font=("Arial", 11), bg="#2d5016", fg="white").pack(pady=10)
+            
+            choice_frame = tk.Frame(dialog, bg="#2d5016")
+            choice_frame.pack(pady=10)
+            
+            chosen = [None]  # Use list to capture value from button callback
+            
+            def choose_up():
+                chosen[0] = value_up
+                dialog.destroy()
+            
+            def choose_down():
+                chosen[0] = value_down
+                dialog.destroy()
+            
+            tk.Button(choice_frame, text=f"↑ Upp ({value_up})", command=choose_up,
+                     font=("Arial", 12, "bold"), width=10, bg="#4a7c2e", fg="white").pack(side=tk.LEFT, padx=5)
+            tk.Button(choice_frame, text=f"↓ Ner ({value_down})", command=choose_down,
+                     font=("Arial", 12, "bold"), width=10, bg="#4a7c2e", fg="white").pack(side=tk.LEFT, padx=5)
+            
+            self.root.wait_window(dialog)
+            
+            if chosen[0] is None:
+                return  # User closed dialog without choosing
+            
+            declared_value = chosen[0]
+
         try:
-            result = perform_build(self.board, player, pile, card, self.round_number)
+            result = perform_build(self.board, player, pile, card, self.round_number, declared_value)
             self.status_label.config(text="Bygge skapat!")
             self.next_turn()
         except Exception as e:
@@ -422,8 +507,11 @@ class MulleGUI:
         chosen = combos[0]
         try:
             result = perform_capture(self.board, player, card, chosen)
-            mulles_text = f", {len(result.mulle_pairs)} mulles" if result.mulle_pairs else ""
-            self.status_label.config(text=f"Intag: {len(result.captured)} kort{mulles_text}")
+            mulle_details = ""
+            if result.mulle_pairs:
+                mulle_cards = [pair[0].code() for pair in result.mulle_pairs]
+                mulle_details = f" (Mullar: {', '.join(mulle_cards)})"
+            self.status_label.config(text=f"Intag: {len(result.captured)} kort{mulle_details}")
             self.next_turn()
         except Exception as e:
             messagebox.showerror("Fel", str(e))
@@ -468,10 +556,13 @@ class MulleGUI:
 
                 # Show Bo's move in a dialog
                 captured_text = ", ".join(c.code() for c in result.captured) if result.captured else "inga"
-                mulles_text = f" ({len(result.mulle_pairs)} mulles)" if result.mulle_pairs else ""
+                mulle_details = ""
+                if result.mulle_pairs:
+                    mulle_cards = [f"{pair[0].code()}" for pair in result.mulle_pairs]
+                    mulle_details = f"\nMullar ({len(result.mulle_pairs)}): {', '.join(mulle_cards)}"
 
                 move_text = f"Bo spelade: {result.played.code()}\n" \
-                           f"Tog in: {captured_text}{mulles_text}\n" \
+                           f"Tog in: {captured_text}{mulle_details}\n" \
                            f"Bygge skapat: {'Ja' if result.build_created else 'Nej'}"
 
                 # Create a custom dialog with OK button
@@ -532,14 +623,35 @@ class MulleGUI:
         # Build summary from accumulated omgång_tally
         a = self.omgang_tally["Anna"]
         b = self.omgang_tally["Bo"]
+        
+        # Calculate bonuses
+        a_bonus = (a["intake"] - 20) * 2 if a["intake"] > 20 else 0
+        b_bonus = (b["intake"] - 20) * 2 if b["intake"] > 20 else 0
+        
         # Add to session cumulative totals
         self.cumulative_scores["Anna"] += a["total"]
         self.cumulative_scores["Bo"] += b["total"]
+        
         result_text = "\n".join([
             f"=== SLUTRESULTAT EFTER 6 RONDER ===",
-            f"Anna: {a['mulle_points']}m + {a['intake']}i + {a['tabbe']}t = {a['total']}",
-            f"Bo: {b['mulle_points']}m + {b['intake']}i + {b['tabbe']}t = {b['total']}",
-            f"\nKumulativt: Anna {self.cumulative_scores['Anna']} • Bo {self.cumulative_scores['Bo']}"
+            f"",
+            f"Anna:",
+            f"  Mullar: {a['mulle_points']}p",
+            f"  Tabbe: {a['tabbe']}p",
+            f"  Intag: {a['intake']}p",
+            f"  Bonus: {a_bonus}p" if a_bonus > 0 else f"  Bonus: 0p",
+            f"  ─────────",
+            f"  Totalt: {a['total']}p",
+            f"",
+            f"Bo:",
+            f"  Mullar: {b['mulle_points']}p",
+            f"  Tabbe: {b['tabbe']}p",
+            f"  Intag: {b['intake']}p",
+            f"  Bonus: {b_bonus}p" if b_bonus > 0 else f"  Bonus: 0p",
+            f"  ─────────",
+            f"  Totalt: {b['total']}p",
+            f"",
+            f"Kumulativt: Anna {self.cumulative_scores['Anna']}p • Bo {self.cumulative_scores['Bo']}p"
         ])
         messagebox.showinfo("Omgång slut", result_text)
 

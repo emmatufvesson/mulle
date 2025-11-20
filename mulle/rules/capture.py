@@ -85,10 +85,10 @@ def can_build(board: Board, player: Player, base_pile: Pile, added_card: Card) -
 
 # Create build
 
-def perform_build(board: Board, player: Player, base_pile: Pile, added_card: Card, round_number: int=1) -> ActionResult:
+def perform_build(board: Board, player: Player, base_pile: Pile, added_card: Card, round_number: int=1, declared_value: int | None=None) -> ActionResult:
     # Locked builds cannot be modified (already checked in can_build)
     # Open builds can be modified by anyone
-    build = board.create_build(base_pile, added_card, owner=player.name, created_round=round_number)
+    build = board.create_build(base_pile, added_card, owner=player.name, created_round=round_number, declared_value=declared_value)
     player.remove_from_hand(added_card)
     return ActionResult(played=added_card, captured=[], mulle_pairs=[], build_created=True)
 

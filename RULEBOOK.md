@@ -30,6 +30,8 @@ Efter capture räknas identiska par (suit+rank, count=2) i gruppen. Varje par ge
 
 ## Build (Skapa / Utöka)
 Lägg handkort på single-pile eller öppet build. Nytt värde = summa av BORD-värden.
+
+### Regelverk
 Regler (`can_build`):
 - Ej tillåtet att bygga på multi-kort vanlig hög.
 - Ej tillåtet att ändra låst build.
@@ -38,12 +40,24 @@ Regler (`can_build`):
 - Måste ha reservation card (annat handkort med samma HAND-värde) för att få bygga.
 - Kort som är enda möjliga capture-kort för eget build är reserverat; kan ej byggas bort.
 
-### Absorption vid build-skapande
-Automatisk absorption av single-piles samt 2-korts-piles/builds vars värden kan packas till build-värdet (direkta matchningar + subset-summor). Om absorption skett eller fler än 2 kort i build → låsning.
+### Bygga upp eller ner
+När du bygger om ett ÖPPET bygge måste du explicit välja om du vill bygga upp eller ner:
+- **Upp**: nytt värde = nuvarande byggvärde + tillagt korts bordvärde
+- **Ner**: nytt värde = |nuvarande byggvärde - tillagt korts bordvärde|
+- GUI visar dialog med båda alternativen
+- Absorption kan fortfarande påverka slutgiltiga värdet (se nedan)
 
-## Låsta vs öppna builds
-- Öppet: ägaren kan utöka (ingen annan får lägga på).
-- Låst: ingen ändring, men Trotta/Feed får lägga kort med samma BORD-värde. Kan alltid tas in av spelare med matchande HAND-värde. Specialvärden kräver denna form för capture.
+### Absorption vid build-skapande
+Automatisk absorption av single-piles samt 2-korts-piles/builds vars värden kan packas till build-värdet (direkta matchningar + subset-summor). Buildet låses numera ENDAST om absorption faktiskt sker (extern material tas in) eller om merge med befintligt build sker.
+
+## Låsta vs öppna builds (uppdaterad logik)
+- Öppet: ägaren kan utöka (ändra värde) genom att lägga till kort; att bara öka kortantal eller byta värde låser inte längre.
+- Låst uppstår ENDAST i dessa fall:
+	1. Merge: du skapar/bygger till ett värde där ett annat build med samma värde finns → de slås ihop och låses.
+	2. Absorption: vid skapande/ombyggnad absorberas minst en extern hög (single eller 2‑korts) till det deklarerade värdet.
+	3. Trotta/Feed: när ett kort med samma BORD-värde läggs på buildet via trotta/feed låses buildet.
+- Om inget av ovan inträffar förblir buildet öppet även med >2 kort.
+- Låst: värdet och kortuppsättningen kan inte ändras (förutom ytterligare trotta-feed). Kan tas in av valfri spelare med matchande HAND-värde (inkl. 14/15/16).
 
 ## Trotta
 Spela kort med BORD-värde V och konsolidera: single-piles med värde V, 2-korts-strukturer med summa V, samt par av singles som summerar till V → nytt LÅST build eller utökning av befintligt build (låses). Ingen reservation card krävs.

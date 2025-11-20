@@ -17,12 +17,18 @@ class Board:
     def remove_pile(self, pile: Pile):
         self.piles.remove(pile)
 
-    def create_build(self, base_pile: Pile, added_card: Card, owner: str, created_round: int=1) -> Build:
+    def create_build(self, base_pile: Pile, added_card: Card, owner: str, created_round: int=1, declared_value: int | None=None) -> Build:
         # Remove base from board
         base_cards = base_pile.cards if isinstance(base_pile, Build) else base_pile
         self.remove_pile(base_pile)
         cards = list(base_cards) + [added_card]
-        target_value = sum(c.value_on_board() for c in cards)
+        
+        # Use declared_value if provided (for rebuilding open builds with up/down choice)
+        # Otherwise calculate from card values
+        if declared_value is not None:
+            target_value = declared_value
+        else:
+            target_value = sum(c.value_on_board() for c in cards)
 
         # Check if build with this value already exists
         existing_builds = self.list_builds_by_value(target_value)
@@ -31,9 +37,8 @@ class Board:
             existing = existing_builds[0]
             before_len = len(existing.cards)
             existing.cards.extend(cards)
-            # Lock when merging (now multi-source)
-            if len(existing.cards) > 2:
-                existing.lock()
+            # New locking rule: merging piles to same value always locks (value consolidation)
+            existing.lock()
             return existing
 
         # Initial build (no existing build with this value)
@@ -95,9 +100,8 @@ class Board:
             self.remove_pile(pile)
             absorbed_any = True
 
-        # Lock if this build now contains more than 2 cards (i.e. beyond a simple 2-card build)
-        # or if absorption merged in extra material
-        if len(new_build.cards) > 2 or absorbed_any:
+        # Lock only if absorption actually occurred (external material pulled in)
+        if absorbed_any:
             new_build.lock()
 
         self.piles.append(new_build)
