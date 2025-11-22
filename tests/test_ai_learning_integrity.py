@@ -1,4 +1,4 @@
-from mulle.cli.game import SimpleLearningAI
+from mulle.engine.learning_ai import SimpleLearningAI
 from mulle.models.board import Board
 from mulle.models.card import Card
 from mulle.models.player import Player
