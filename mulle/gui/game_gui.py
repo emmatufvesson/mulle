@@ -1,12 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox, ttk, font
-from ..models.deck import Deck
+from ..engine.game_service import GameEngine
 from ..models.board import Board
 from ..models.build import Build
-from ..models.player import Player
-from ..rules.capture import (auto_play_turn, generate_capture_combinations,
-                             perform_capture, can_build, perform_build,
-                             perform_discard, perform_trotta)
 from ..rules.scoring import score_round
 
 # Suit symbols
@@ -46,6 +42,7 @@ class MulleGUI:
 
         # Game state
         self.seed = seed
+        self.engine = GameEngine(seed=self.seed)
         self.deck = None
         self.board = None
         self.players = None
@@ -191,13 +188,11 @@ class MulleGUI:
         return card_rect
 
     def new_game(self):
-        self.deck = Deck(seed=self.seed)
-        self.board = Board()
-        for _ in range(8):
-            self.board.add_card(self.deck.draw())
-        self.players = [Player("Anna"), Player("Bo")]
-        for p in self.players:
-            p.add_to_hand(self.deck.draw_many(8))
+        self.engine.start_omgang(0)
+        self.engine.deal_hands()
+        self.deck = self.engine.deck
+        self.board = self.engine.board
+        self.players = self.engine.players
         # Start omgång with configured starter
         self.current_player_idx = self.starting_player_idx
         self.round_number = 1
@@ -215,8 +210,7 @@ class MulleGUI:
             self.root.after(800, self.bo_auto_play)
 
     def new_round(self):
-        # Deal 8 cards to each player (board remains as-is between rounds)
-        if self.deck.remaining() < 16:
+        if self.engine.deck.remaining() < 16:
             messagebox.showinfo("Slut på kort", "Inte nog kort för en ny rond!")
             return
         for p in self.players:
@@ -224,7 +218,7 @@ class MulleGUI:
             p.captured.clear()
             p.mulles.clear()
             p.tabbe = 0
-            p.add_to_hand(self.deck.draw_many(8))
+        self.engine.deal_hands()
         # Each round in an omgång starts with the omgång's starter
         self.current_player_idx = self.starting_player_idx
         self.round_number += 1
@@ -425,10 +419,10 @@ class MulleGUI:
 
         try:
             if self.action_mode == 'trotta':
-                result = perform_trotta(self.board, player, card, self.round_number)
+                result = self.engine.play_trotta(player, card, self.round_number)
                 self.status_label.config(text=f"Trotta utfört: {len(result.captured)} kort")
             elif self.action_mode == 'discard':
-                result = perform_discard(self.board, player, card)
+                result = self.engine.play_discard(player, card)
                 self.status_label.config(text="Kort slängt")
             self.next_turn()
         except Exception as e:
@@ -439,7 +433,7 @@ class MulleGUI:
         card = player.hand[self.selected_hand_card]
         pile = self.board.piles[pile_idx]
 
-        if not can_build(self.board, player, pile, card):
+        if not self.engine.can_build_on(player, pile, card):
             messagebox.showwarning("Ogiltigt drag", "Kan inte bygga här!")
             return
 
@@ -488,7 +482,7 @@ class MulleGUI:
             declared_value = chosen[0]
 
         try:
-            result = perform_build(self.board, player, pile, card, self.round_number, declared_value)
+            result = self.engine.play_build(player, pile, card, self.round_number, declared_value)
             self.status_label.config(text="Bygge skapat!")
             self.next_turn()
         except Exception as e:
@@ -498,7 +492,7 @@ class MulleGUI:
         player = self.players[0]
         card = player.hand[self.selected_hand_card]
 
-        combos = generate_capture_combinations(self.board, card)
+        combos = self.engine.available_capture_combinations(card)
         if not combos:
             messagebox.showwarning("Ingen capture", "Inget att ta in med detta kort!")
             return
@@ -506,7 +500,7 @@ class MulleGUI:
         # Use first combo (simplified - could show dialog to choose)
         chosen = combos[0]
         try:
-            result = perform_capture(self.board, player, card, chosen)
+            result = self.engine.play_capture(player, card, chosen)
             mulle_details = ""
             if result.mulle_pairs:
                 mulle_cards = [pair[0].code() for pair in result.mulle_pairs]
@@ -519,7 +513,7 @@ class MulleGUI:
     def auto_play(self):
         player = self.players[self.current_player_idx]
         try:
-            result = auto_play_turn(self.board, player, self.round_number)
+            result = self.engine.play_auto(player, self.round_number)
             self.status_label.config(text=f"{player.name} auto: {len(result.captured)} kort intagna")
             self.next_turn()
         except Exception as e:
@@ -552,7 +546,7 @@ class MulleGUI:
         bo = self.players[1]
         if bo.hand:
             try:
-                result = auto_play_turn(self.board, bo, self.round_number)
+                result = self.engine.play_auto(bo, self.round_number)
 
                 # Show Bo's move in a dialog
                 captured_text = ", ".join(c.code() for c in result.captured) if result.captured else "inga"
@@ -658,18 +652,11 @@ class MulleGUI:
     def start_next_omgang(self):
         # Toggle who starts the omgång
         self.starting_player_idx = 1 - self.starting_player_idx
-        # Fresh deck and board: only initial deal puts 8 cards on board
-        self.deck = Deck()  # new shuffled deck
-        self.board = Board()
-        for _ in range(8):
-            self.board.add_card(self.deck.draw())
-        # Reset per-round state and deal new hands
-        for p in self.players:
-            p.hand.clear()
-            p.captured.clear()
-            p.mulles.clear()
-            p.tabbe = 0
-            p.add_to_hand(self.deck.draw_many(8))
+        self.engine.start_omgang(self.engine.current_omgang + 1)
+        self.engine.deal_hands()
+        self.deck = self.engine.deck
+        self.board = self.engine.board
+        self.players = self.engine.players
         # Reset round and omgång tally
         self.round_number = 1
         self.omgang_tally = {

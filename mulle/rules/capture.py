@@ -270,6 +270,13 @@ def perform_trotta(board: Board, player: Player, card: Card, round_number: int=1
     if not all_matches:
         raise ValueError(f"No piles matching value {target_value} to trotta")
 
+    # Trotta requires a reservation card of the same value when creating a new locked build
+    reservation_available = any(
+        c is not card and c.value_on_board() == target_value for c in player.hand
+    )
+    if not reservation_available:
+        raise ValueError("Trotta kräver ett reservationskort med samma värde")
+
     # Collect all cards from matched piles
     cards = [card]  # Start with played card
     for pile in all_matches:

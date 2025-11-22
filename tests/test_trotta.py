@@ -15,7 +15,8 @@ def test_trotta_creates_locked_build():
 
     player = Player("Anna")
     sp8 = Card("SP","8",4)
-    player.add_to_hand([sp8])
+    reservation_8 = Card("RU","8",5)
+    player.add_to_hand([sp8, reservation_8])
 
     # Trotta with SP 8 (value 8)
     res = perform_trotta(board, player, sp8)
