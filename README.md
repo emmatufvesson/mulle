@@ -20,6 +20,18 @@ Kör tester:
 pytest -q
 ```
 
+Kör motorn headless (utan UI) med fördefinierade drag i ett JSON-script:
+
+```powershell
+python -m mulle.engine.headless_runner --seed 42 --rounds 1 --script scripted_moves.json
+```
+
+Utan script körs alla drag automatiskt av motorn:
+
+```powershell
+python -m mulle.engine.headless_runner --rounds 1
+```
+
 ## Specialvärden
 - Bord: A=1
 - Hand: A=14, SP 2=15, RU 10=16
