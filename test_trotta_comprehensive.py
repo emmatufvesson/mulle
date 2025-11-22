@@ -26,12 +26,11 @@ def test_trotta_requires_reservation():
     print("Attempting to trotta without reservation card...")
 
     try:
-        result = perform_trotta(board, player, c4_hand, round_number=1)
-        print("❌ FAILED: Should not allow trotta without reservation card!")
-        return False
+        perform_trotta(board, player, c4_hand, round_number=1)
     except ValueError as e:
         print(f"✅ PASSED: {e}")
-        return True
+    else:
+        raise AssertionError("Should not allow trotta without reservation card!")
 
 def test_trotta_works_with_reservation():
     """Test that trotta works when you have a reservation card"""
@@ -52,21 +51,13 @@ def test_trotta_works_with_reservation():
     print("Setup: Anna has HJ 4 and SP 4 in hand, KL 4 on board")
     print("Attempting to trotta with reservation card...")
 
-    try:
-        result = perform_trotta(board, player, c4_hand1, round_number=1)
-        print(f"✅ PASSED: Trotta succeeded - {len(result.captured)} cards captured, build created: {result.build_created}")
+    result = perform_trotta(board, player, c4_hand1, round_number=1)
+    print(f"✅ PASSED: Trotta succeeded - {len(result.captured)} cards captured, build created: {result.build_created}")
 
-        # Verify the build was created and is locked
-        builds = board.list_builds()
-        if len(builds) == 1 and builds[0].locked:
-            print(f"✅ Build is locked: {builds[0]}")
-            return True
-        else:
-            print(f"❌ FAILED: Build should be locked!")
-            return False
-    except ValueError as e:
-        print(f"❌ FAILED: Should allow trotta with reservation card! Error: {e}")
-        return False
+    # Verify the build was created and is locked
+    builds = board.list_builds()
+    assert len(builds) == 1 and builds[0].locked, "Build should be locked after trotta"
+    print(f"✅ Build is locked: {builds[0]}")
 
 def test_cannot_rebuild_locked_build():
     """Test that locked builds cannot be rebuilt by opponent"""
@@ -98,12 +89,8 @@ def test_cannot_rebuild_locked_build():
 
     can_rebuild = can_build(board, bo, locked_build, c9)
 
-    if not can_rebuild:
-        print(f"✅ PASSED: Cannot rebuild locked build (can_build returned {can_rebuild})")
-        return True
-    else:
-        print(f"❌ FAILED: Should not allow rebuilding locked build!")
-        return False
+    assert not can_rebuild, "Should not allow rebuilding locked build"
+    print(f"✅ PASSED: Cannot rebuild locked build (can_build returned {can_rebuild})")
 
 def test_can_rebuild_unlocked_build():
     """Test that unlocked builds CAN be rebuilt (for comparison)"""
@@ -135,12 +122,8 @@ def test_can_rebuild_unlocked_build():
 
     can_rebuild = can_build(board, bo, unlocked_build, c9)
 
-    if can_rebuild:
-        print(f"✅ PASSED: Can rebuild unlocked build (can_build returned {can_rebuild})")
-        return True
-    else:
-        print(f"❌ FAILED: Should allow rebuilding unlocked build!")
-        return False
+    assert can_rebuild, "Should allow rebuilding unlocked build"
+    print(f"✅ PASSED: Can rebuild unlocked build (can_build returned {can_rebuild})")
 
 def test_add_to_own_locked_build():
     """Test that you CAN add cards to your own locked build via trotta"""
@@ -168,17 +151,9 @@ def test_add_to_own_locked_build():
     print("Setup: Anna has locked 12-build, tries to add SP Q to it")
     print("Attempting to trotta on own locked build...")
 
-    try:
-        result = perform_trotta(board, anna, cQ, round_number=1)
-        if len(locked_build.cards) == 3:
-            print(f"✅ PASSED: Added card to own locked build - now has {len(locked_build.cards)} cards")
-            return True
-        else:
-            print(f"❌ FAILED: Build should have 3 cards, has {len(locked_build.cards)}")
-            return False
-    except Exception as e:
-        print(f"❌ FAILED: Should allow adding to own locked build! Error: {e}")
-        return False
+    perform_trotta(board, anna, cQ, round_number=1)
+    assert len(locked_build.cards) == 3, f"Build should have 3 cards, has {len(locked_build.cards)}"
+    print(f"✅ PASSED: Added card to own locked build - now has {len(locked_build.cards)} cards")
 
 if __name__ == "__main__":
     print("\n" + "="*70)
