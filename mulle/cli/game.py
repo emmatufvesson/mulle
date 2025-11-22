@@ -1,6 +1,4 @@
-import argparse
-from ..engine.game_service import GameEngine
-from ..engine.learning_ai import SimpleLearningAI
+from ..models.deck import Deck
 from ..models.board import Board
 from ..models.player import Player
 
@@ -159,15 +157,132 @@ def interactive_turn(engine: GameEngine, board: Board, player: Player, round_num
         print("Okänt val. Försök igen.")
 
 
-def run_session(seed: int, rounds: int, interactive: bool):
-    engine = GameEngine(seed=seed)
+def deal_hands(deck: Deck, players: list[Player]):
+    if deck.remaining() < 16:
+        raise RuntimeError("Inte nog kort kvar i leken för att dela ut händer (behöver 16)")
+    for p in players:
+        p.hand.clear()
+        p.add_to_hand(deck.draw_many(8))
 
-    def selector(board: Board, player: Player, round_number: int):
-        if interactive and player.name == "Anna":
-            return interactive_turn(engine, board, player, round_number)
-        return engine.play_auto(player, round_number)
 
-    result = engine.play_session(rounds=rounds, action_selector=selector if interactive else None)
+class SimpleLearningAI:
+    def __init__(self, player: Player):
+        self.player = player
+        # value estimates per action category
+        self.values = {
+            'capture_combo_mulle': 10.0,
+            'capture_combo': 5.0,
+            'build': 1.0,
+            'discard': 0.0
+        }
+        self.learning_rate = 0.2
+        self.exploration = 0.15  # chance to explore
+
+    def select_action(self, board: Board, round_number: int = 1):
+        candidates = enumerate_candidate_actions(board, self.player, round_number)
+        if not candidates:
+            return None
+        # Exploration
+        if random.random() < self.exploration:
+            return random.choice(candidates)
+        # Score by current value * predicted_reward weight
+        scored = []
+        for c in candidates:
+            base_val = self.values.get(c.category, 0.0)
+            total_score = base_val + c.predicted_reward
+            scored.append((total_score, c))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return scored[0][1]
+
+    def learn(self, action_category: str, reward: float):
+        old = self.values.get(action_category, 0.0)
+        self.values[action_category] = old + self.learning_rate * (reward - old)
+
+
+def ai_turn(board: Board, ai: SimpleLearningAI, round_number: int = 1):
+    action = ai.select_action(board, round_number)
+    if not action:
+        return None
+    result = action.execute()
+    # Reward heuristic: captured cards + 10 per mulle + build small bonus
+    reward = len(result.captured) + 10 * len(result.mulle_pairs) + (2 if result.build_created else 0)
+    ai.learn(action.category, reward)
+    return result
+
+
+def play_round(round_index: int, board: Board, players: list[Player], ai: SimpleLearningAI | None, starter_idx: int = 0, interactive: bool = False):
+    round_number = round_index + 1  # 1-based round number
+    turn = starter_idx  # who starts this round
+    while any(p.hand for p in players):
+        current = players[turn % 2]
+        if interactive and current.name == "Anna":
+            interactive_turn(board, current, round_number)
+        else:
+            if ai and current is ai.player:
+                res = ai_turn(board, ai, round_number)
+            else:
+                res = auto_play_turn(board, current, round_number)
+            print(f"Auto ({current.name}): {res}")
+        if not board.piles:
+            current.tabbe += 1
+        turn += 1
+
+    remaining_builds = board.list_builds()
+    if remaining_builds:
+        print("WARNING: Builds left on board at end of round!")
+        for build in remaining_builds:
+            print(f"  - {build.owner}'s build (value {build.value}, {len(build.cards)} cards)")
+        print("  These builds should have been captured during the round!")
+
+    scores = score_round(players)
+    print(f"==== Round {round_number} Finished ====")
+    print("Board empty:", len(board.piles) == 0)
+    for p in players:
+        print(f"{p.name} captured {len(p.captured)} cards, mulles: {[c.code() for c in p.mulles]}, tabbe={p.tabbe}")
+    for s in scores:
+        print(s)
+    return scores
+
+
+def play_session(seed: int, rounds: int, interactive: bool):
+    """
+    rounds = number of omgångar; each omgång has exactly 6 rounds.
+    Each omgång uses a fresh 2-deck shoe (104 cards): 8 to board initially + 6*16 to hands = 104 exactly.
+    The starting player alternates between omgångar.
+    """
+    random.seed(seed)
+    players = [Player("Anna"), Player("Bo")]
+    ai = SimpleLearningAI(players[1])  # Bo as AI
+    cumulative = {p.name: 0 for p in players}
+    starting_player_idx = 0  # 0=Anna, 1=Bo
+
+    all_omgang_results = []
+
+    for omg in range(rounds):
+        print(f"==== Startar Omgång {omg+1} (startar: {players[starting_player_idx].name}) ====")
+        # Fresh deck and initial board with 8 cards
+        deck = Deck(seed=seed + omg)
+        board = setup_initial_board(deck)
+
+        omgang_results = []
+        # Play 6 rounds per omgång
+        for r in range(6):
+            deal_hands(deck, players)
+            scores = play_round(r, board, players, ai, starter_idx=starting_player_idx, interactive=interactive if r == 0 and omg == 0 else False)
+            for s in scores:
+                cumulative[s.player.name] += s.total
+            # Clear per-round data but keep board until end of omgång
+            for p in players:
+                p.captured.clear()
+                p.mulles.clear()
+                p.tabbe = 0
+            omgang_results.append(scores)
+        # End of omgång: clear board
+        board.piles.clear()
+        print(f"==== Omgång {omg+1} klar. Bord rensat. ====")
+        # Alternate starter for next omgång
+        starting_player_idx = 1 - starting_player_idx
+        all_omgang_results.append(omgang_results)
 
     print("==== Session Summary ====")
     for name, total in result.cumulative.items():
