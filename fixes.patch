@@ -1,0 +1,287 @@
+*** Begin Patch
+*** Update File: mulle/engine/game_service.py
+@@
+-import random
+-from dataclasses import dataclass, field
+-from typing import Callable, List, Optional, Tuple
++import random
++from dataclasses import dataclass, field
++from typing import Callable, List, Optional, Tuple
+@@
+-from ..models.deck import Deck
++from ..models.deck import Deck
+@@
+-ActionSelector = Callable[[Board, Player, int], ActionResult]
++ActionSelector = Callable[[Board, Player, int], ActionResult]
+@@
+-class GameEngine:
++class GameEngine:
+@@
+-        self.board = Board()
+-        # Use Optional[Deck] for compatibility with Python < 3.10
+-        self.deck: Optional[Deck] = None
+-        self.ai = SimpleLearningAI(self.players[1]) if ai_enabled else None
++        self.board = Board()
++        # Use Optional[Deck] for compatibility with Python < 3.10
++        self.deck: Optional[Deck] = None
++        self.ai = SimpleLearningAI(self.players[1]) if ai_enabled else None
+         self.current_omgang = 0
+@@
+-    def setup_initial_board(self) -> Board:
+-        if self.deck is None:
+-            raise RuntimeError("Deck not initialized. Call start_omgang() before setup_initial_board().")
+-        self.board = Board()
+-        for _ in range(8):
+-            self.board.add_card(self.deck.draw())
+-        return self.board
++    def setup_initial_board(self) -> Board:
++        if self.deck is None:
++            raise RuntimeError("Deck not initialized. Call start_omgang() before setup_initial_board().")
++        self.board = Board()
++        for _ in range(8):
++            self.board.add_card(self.deck.draw())
++        return self.board
+@@
+-    def deal_hands(self):
+-        if self.deck is None:
+-            raise RuntimeError("Deck not initialized. Cannot deal hands.")
+-        if self.deck.remaining() < 16:
+-            raise RuntimeError("Inte nog kort kvar i leken för att dela ut händer (behöver 16)")
+-        for p in self.players:
+-            p.hand.clear()
+-            p.add_to_hand(self.deck.draw_many(8))
++    def deal_hands(self):
++        if self.deck is None:
++            raise RuntimeError("Deck not initialized. Cannot deal hands.")
++        if self.deck.remaining() < 16:
++            raise RuntimeError("Inte nog kort kvar i leken för att dela ut händer (behöver 16)")
++        for p in self.players:
++            p.hand.clear()
++            p.add_to_hand(self.deck.draw_many(8))
+@@
+-    def play_auto(self, player: Player, round_number: int):
+-        # If ai not configured or this player isn't the ai player, fall back to auto_play_turn
+-        if not self.ai or player is not self.players[1]:
+-            return auto_play_turn(self.board, player, round_number)
+-
+-        action = self.ai.select_action(self.board, round_number)
+-        # If AI had no candidate actions, fallback to auto_play_turn
+-        if action is None:
+-            return auto_play_turn(self.board, player, round_number)
+-
+-        result = action.execute()
+-        # Defensive: ensure result has expected attributes; otherwise don't fail noisily
+-        captured_len = len(getattr(result, "captured", []))
+-        mulle_pairs_len = len(getattr(result, "mulle_pairs", []))
+-        build_created = bool(getattr(result, "build_created", False))
+-        reward = captured_len + 10 * mulle_pairs_len + (2 if build_created else 0)
+-        self.ai.learn(getattr(action, "category", ""), reward)
+-        return result
++    def play_auto(self, player: Player, round_number: int):
++        # If ai not configured or this player isn't the ai player, fall back to auto_play_turn
++        if not self.ai or player is not self.players[1]:
++            return auto_play_turn(self.board, player, round_number)
++
++        action = self.ai.select_action(self.board, round_number)
++        # If AI had no candidate actions, fallback to auto_play_turn
++        if action is None:
++            return auto_play_turn(self.board, player, round_number)
++
++        result = action.execute()
++        # Defensive: ensure result has expected attributes; otherwise don't fail noisily
++        captured_len = len(getattr(result, "captured", []))
++        mulle_pairs_len = len(getattr(result, "mulle_pairs", []))
++        build_created = bool(getattr(result, "build_created", False))
++        reward = captured_len + 10 * mulle_pairs_len + (2 if build_created else 0)
++        self.ai.learn(getattr(action, "category", ""), reward)
++        return result
+@@
+-    def play_round(
+-        self,
+-        round_index: int,
+-        starter_idx: int = 0,
+-        action_selector: ActionSelector | None = None,
+-    ) -> RoundResult:
+-        selector = action_selector or self._default_action_selector
++    def play_round(
++        self,
++        round_index: int,
++        starter_idx: int = 0,
++        action_selector: Optional[ActionSelector] = None,
++    ) -> RoundResult:
++        selector = action_selector or self._default_action_selector
+         round_number = round_index + 1
+         turn = starter_idx
+-        executed_actions: list[Tuple[str, ActionResult]] = []
++        executed_actions: List[Tuple[str, ActionResult]] = []
+@@
+-    def play_session(
+-        self,
+-        rounds: int,
+-        action_selector: ActionSelector | None = None,
+-        starter_idx: int = 0,
+-    ) -> SessionResult:
+-        cumulative = {p.name: 0 for p in self.players}
+-        starting_player_idx = starter_idx
+-        omgangen: list[OmgangResult] = []
++    def play_session(
++        self,
++        rounds: int,
++        action_selector: Optional[ActionSelector] = None,
++        starter_idx: int = 0,
++    ) -> SessionResult:
++        cumulative = {p.name: 0 for p in self.players}
++        starting_player_idx = starter_idx
++        omgangen: List[OmgangResult] = []
+@@
+-            for r in range(6):
++            for r in range(6):
+                 self.deal_hands()
+                 round_result = self.play_round(
+                     r,
+                     starter_idx=starting_player_idx,
+                     action_selector=action_selector,
+                 )
+                 for s in round_result.scores:
+                     cumulative[s.player.name] += s.total
+                 # clear round data
+                 for p in self.players:
+                     p.captured.clear()
+                     p.mulles.clear()
+                     p.tabbe = 0
+                 omgang_result.rounds.append(round_result)
+             self.board.piles.clear()
+             starting_player_idx = 1 - starting_player_idx
+             omgangen.append(omgang_result)
+ 
+         ai_values = getattr(self.ai, "values", None)
+         return SessionResult(omgangen=omgangen, cumulative=cumulative, ai_values=ai_values)
+*** End Patch
+*** Begin Patch
+*** Update File: mulle/engine/learning_ai.py
+@@
+ import random
+ from typing import Optional
+@@
+ class SimpleLearningAI:
+@@
+     def select_action(self, board: Board, round_number: int = 1):
+         candidates = enumerate_candidate_actions(board, self.player, round_number)
+         if not candidates:
+             return None
+         if random.random() < self.exploration:
+             return random.choice(candidates)
+         scored = []
+         for c in candidates:
+-            base_val = self.values.get(getattr(c, 'category', ''), 0.0)
+-            predicted = getattr(c, 'predicted_reward', 0.0)
++            # Skip malformed candidate actions
++            if not hasattr(c, "execute"):
++                continue
++            base_val = self.values.get(getattr(c, "category", ""), 0.0)
++            predicted = getattr(c, "predicted_reward", 0.0)
+             total_score = base_val + predicted
+             scored.append((total_score, c))
+         scored.sort(key=lambda x: x[0], reverse=True)
+         return scored[0][1]
+*** End Patch
+*** Begin Patch
+*** Update File: mulle/cli/game.py
+@@
+-"""Simple CLI wrapper that uses GameEngine for gameplay.
+-
+-The previous CLI version contained duplicated engine logic and an inline AI implementation
+-which caused import and duplication problems. This module now delegates to GameEngine
+-and keeps CLI-specific interactive behavior minimal.
+-"""
+-import argparse
+-import random
+-from typing import List
+-
+-from ..engine.game_service import GameEngine
+-from ..models.deck import Deck
+-from ..models.board import Board
+-from ..models.player import Player
+-
+-
+-def run_session(seed: int, rounds: int, interactive: bool):
+-    engine = GameEngine(seed=seed, ai_enabled=True)
+-    result = engine.play_session(rounds=rounds)
+-
+-    print("==== Session Summary ====")
+-    for name, total in result.cumulative.items():
+-        print(f"{name}: {total}")
+-
+-
+-if __name__ == '__main__':
+-    parser = argparse.ArgumentParser()
+-    parser.add_argument('--seed', type=int, default=42)
+-    parser.add_argument('--rounds', type=int, default=1)
+-    parser.add_argument('--interactive', action='store_true')
+-    args = parser.parse_args()
+-    run_session(seed=args.seed, rounds=args.rounds, interactive=args.interactive)
++"""Simple CLI wrapper that uses GameEngine for gameplay.
++
++The previous CLI version contained duplicated engine logic and an inline AI implementation
++which caused import and duplication problems. This module now delegates to GameEngine
++and keeps CLI-specific interactive behavior minimal.
++"""
++import argparse
++
++from ..engine.game_service import GameEngine
++
++
++def _interactive_selector(engine: GameEngine):
++    """Return an action_selector that prompts the user to pick a card index to discard.
++
++    NOTE: This is a minimal interactive selector. It assumes the player will choose a discard
++    by entering the index of a card in their hand. If invalid input is provided, fallback to
++    discarding the first card.
++    """
++
++    def selector(board, player, round_number):
++        try:
++            print(f"\n{player.name}'s hand:")
++            for i, c in enumerate(player.hand):
++                # assume Card has a human-readable repr or __str__
++                print(f"  [{i}] {c}")
++            raw = input("Välj index för kort att spela (enter för första): ").strip()
++            if raw == "":
++                idx = 0
++            else:
++                idx = int(raw)
++            if idx < 0 or idx >= len(player.hand):
++                print("Ogiltigt index, spelar första kortet.")
++                idx = 0
++        except (ValueError, KeyboardInterrupt):
++            print("Ogiltigt val eller avbrutet, spelar första kortet.")
++            idx = 0
++        # For simplicity we play discard via engine wrapper
++        return engine.play_discard(player, player.hand[idx])
++
++    return selector
++
++
++def run_session(seed: int, rounds: int, interactive: bool):
++    engine = GameEngine(seed=seed, ai_enabled=True)
++    action_selector = None
++    if interactive:
++        action_selector = _interactive_selector(engine)
++
++    result = engine.play_session(rounds=rounds, action_selector=action_selector)
++
++    print("==== Session Summary ====")
++    for name, total in result.cumulative.items():
++        print(f"{name}: {total}")
++    if hasattr(result, "ai_values") and result.ai_values:
++        print("AI values:", result.ai_values)
++
++
++if __name__ == '__main__':
++    parser = argparse.ArgumentParser()
++    parser.add_argument('--seed', type=int, default=42)
++    parser.add_argument('--rounds', type=int, default=1)
++    parser.add_argument('--interactive', action='store_true')
++    args = parser.parse_args()
++    run_session(seed=args.seed, rounds=args.rounds, interactive=args.interactive)
+*** End Patch
