@@ -5,6 +5,7 @@ import sys
 
 from ..models.board import Board
 from ..models.card import Card
+from ..models.player import Player
 from ..rules.capture import (
     ActionResult,
     CandidateAction,
@@ -113,7 +114,7 @@ class TrainingEnvironment:
         return max(actions, key=lambda a: getattr(a, "predicted_reward", 0.0))
 
     def _apply_action(
-        self, player, action: Optional[CandidateAction]
+        self, player: Player, action: Optional[CandidateAction]
     ) -> ActionResult:
         if action is None:
             return auto_play_turn(self.engine.board, player, self.round_number)
