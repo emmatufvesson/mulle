@@ -1,18 +1,10 @@
 import random
-from typing import Optional
-
 from ..models.board import Board
 from ..models.player import Player
 from ..rules.capture import enumerate_candidate_actions
 
 
 class SimpleLearningAI:
-    """Compact learning AI used by the engine. This focuses on high-level action categories.
-
-    It expects enumerate_candidate_actions(board, player, round_number) to return
-    a list of candidate action objects with attributes: category (str), predicted_reward (float), and an execute() method.
-    """
-
     def __init__(self, player: Player):
         self.player = player
         self.values = {
@@ -32,12 +24,14 @@ class SimpleLearningAI:
             return random.choice(candidates)
         scored = []
         for c in candidates:
+            if not hasattr(c, 'execute'):
+                continue
             base_val = self.values.get(getattr(c, 'category', ''), 0.0)
             predicted = getattr(c, 'predicted_reward', 0.0)
             total_score = base_val + predicted
             scored.append((total_score, c))
         scored.sort(key=lambda x: x[0], reverse=True)
-        return scored[0][1]
+        return scored[0][1] if scored else None
 
     def learn(self, action_category: str, reward: float):
         old = self.values.get(action_category, 0.0)

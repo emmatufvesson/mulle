@@ -14,13 +14,33 @@ from ..models.board import Board
 from ..models.player import Player
 
 
+def _interactive_selector(engine: GameEngine):
+    def selector(board, player, round_number):
+        try:
+            print(f"\n{player.name}'s hand:")
+            for i, c in enumerate(player.hand):
+                print(f"  [{i}] {c.code()}")
+            raw = input("Välj index för kort att spela (enter för första): ").strip()
+            idx = 0 if raw == '' else int(raw)
+            if idx < 0 or idx >= len(player.hand):
+                print("Ogiltigt index, spelar första kortet.")
+                idx = 0
+        except (ValueError, KeyboardInterrupt):
+            print("Ogiltigt val eller avbrutet, spelar första kortet.")
+            idx = 0
+        return engine.play_discard(player, player.hand[idx])
+    return selector
+
+
 def run_session(seed: int, rounds: int, interactive: bool):
     engine = GameEngine(seed=seed, ai_enabled=True)
-    result = engine.play_session(rounds=rounds)
-
+    action_selector = _interactive_selector(engine) if interactive else None
+    result = engine.play_session(rounds=rounds, action_selector=action_selector)
     print("==== Session Summary ====")
     for name, total in result.cumulative.items():
         print(f"{name}: {total}")
+    if result.ai_values:
+        print("AI values:", result.ai_values)
 
 
 if __name__ == '__main__':

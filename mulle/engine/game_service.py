@@ -50,7 +50,7 @@ class GameEngine:
         random.seed(seed)
         self.players = [Player("Anna"), Player("Bo")]
         self.board = Board()
-        self.deck: Deck | None = None
+        self.deck: Optional[Deck] = None
         self.ai = SimpleLearningAI(self.players[1]) if ai_enabled else None
         self.current_omgang = 0
 
@@ -107,12 +107,12 @@ class GameEngine:
         self,
         round_index: int,
         starter_idx: int = 0,
-        action_selector: ActionSelector | None = None,
+        action_selector: Optional[ActionSelector] = None,
     ) -> RoundResult:
         selector = action_selector or self._default_action_selector
         round_number = round_index + 1
         turn = starter_idx
-        executed_actions: list[Tuple[str, ActionResult]] = []
+        executed_actions: List[Tuple[str, ActionResult]] = []
 
         while any(p.hand for p in self.players):
             current = self.players[turn % 2]
@@ -128,12 +128,12 @@ class GameEngine:
     def play_session(
         self,
         rounds: int,
-        action_selector: ActionSelector | None = None,
+        action_selector: Optional[ActionSelector] = None,
         starter_idx: int = 0,
     ) -> SessionResult:
         cumulative = {p.name: 0 for p in self.players}
         starting_player_idx = starter_idx
-        omgangen: list[OmgangResult] = []
+        omgangen: List[OmgangResult] = []
 
         for omg in range(rounds):
             self.start_omgang(omg)
