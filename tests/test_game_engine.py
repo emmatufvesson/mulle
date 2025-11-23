@@ -19,4 +19,3 @@ def test_discard_only_session_is_deterministic():
 
     assert result_a.cumulative == result_b.cumulative == {"Anna": 0, "Bo": 0}
     assert len(result_a.omgangen[0].rounds) == 6
-

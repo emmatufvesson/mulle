@@ -50,18 +50,23 @@ class GameEngine:
         random.seed(seed)
         self.players = [Player("Anna"), Player("Bo")]
         self.board = Board()
+        # Use Optional[Deck] for compatibility with Python < 3.10
         self.deck: Optional[Deck] = None
         self.ai = SimpleLearningAI(self.players[1]) if ai_enabled else None
         self.current_omgang = 0
 
     # --- setup helpers ---
     def setup_initial_board(self) -> Board:
+        if self.deck is None:
+            raise RuntimeError("Deck not initialized. Call start_omgang() before setup_initial_board().")
         self.board = Board()
         for _ in range(8):
             self.board.add_card(self.deck.draw())
         return self.board
 
     def deal_hands(self):
+        if self.deck is None:
+            raise RuntimeError("Deck not initialized. Cannot deal hands.")
         if self.deck.remaining() < 16:
             raise RuntimeError("Inte nog kort kvar i leken för att dela ut händer (behöver 16)")
         for p in self.players:
@@ -91,13 +96,23 @@ class GameEngine:
         return perform_discard(self.board, player, card)
 
     def play_auto(self, player: Player, round_number: int):
-        if self.ai and player is self.players[1]:
-            action = self.ai.select_action(self.board, round_number)
-            result = action.execute()
-            reward = len(result.captured) + 10 * len(result.mulle_pairs) + (2 if result.build_created else 0)
-            self.ai.learn(action.category, reward)
-            return result
-        return auto_play_turn(self.board, player, round_number)
+        # If ai not configured or this player isn't the ai player, fall back to auto_play_turn
+        if not self.ai or player is not self.players[1]:
+            return auto_play_turn(self.board, player, round_number)
+
+        action = self.ai.select_action(self.board, round_number)
+        # If AI had no candidate actions, fallback to auto_play_turn
+        if action is None:
+            return auto_play_turn(self.board, player, round_number)
+
+        result = action.execute()
+        # Defensive: ensure result has expected attributes; otherwise don't fail noisily
+        captured_len = len(getattr(result, "captured", []))
+        mulle_pairs_len = len(getattr(result, "mulle_pairs", []))
+        build_created = bool(getattr(result, "build_created", False))
+        reward = captured_len + 10 * mulle_pairs_len + (2 if build_created else 0)
+        self.ai.learn(getattr(action, "category", ""), reward)
+        return result
 
     # --- gameplay ---
     def _default_action_selector(self, board: Board, player: Player, round_number: int) -> ActionResult:
@@ -167,4 +182,3 @@ class GameEngine:
 
     def can_build_on(self, player: Player, pile, card) -> bool:
         return can_build(self.board, player, pile, card)
-
