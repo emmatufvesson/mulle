@@ -32,6 +32,12 @@ Utan script körs alla drag automatiskt av motorn:
 python -m mulle.engine.headless_runner --rounds 1
 ```
 
+Starta den förenklade träningsmiljön för att se en auto-spelad omgång:
+
+```powershell
+python -m mulle.engine.training_environment --seed 3 --max-steps 30
+```
+
 ## Specialvärden
 - Bord: A=1
 - Hand: A=14, SP 2=15, RU 10=16
