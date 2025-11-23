@@ -5,41 +5,53 @@ which caused import and duplication problems. This module now delegates to GameE
 and keeps CLI-specific interactive behavior minimal.
 """
 import argparse
-import random
-from typing import List
 
 from ..engine.game_service import GameEngine
-from ..models.deck import Deck
-from ..models.board import Board
-from ..models.player import Player
 
 
 def _interactive_selector(engine: GameEngine):
+    """Return an action_selector that prompts the user to pick a card index to discard.
+
+    NOTE: This is a minimal interactive selector. It assumes the player will choose a discard
+    by entering the index of a card in their hand. If invalid input is provided, fallback to
+    discarding the first card.
+    """
+
     def selector(board, player, round_number):
         try:
             print(f"\n{player.name}'s hand:")
             for i, c in enumerate(player.hand):
-                print(f"  [{i}] {c.code()}")
+                # assume Card has a human-readable repr or __str__
+                print(f"  [{i}] {c}")
             raw = input("Välj index för kort att spela (enter för första): ").strip()
-            idx = 0 if raw == '' else int(raw)
+            if raw == "":
+                idx = 0
+            else:
+                idx = int(raw)
             if idx < 0 or idx >= len(player.hand):
                 print("Ogiltigt index, spelar första kortet.")
                 idx = 0
         except (ValueError, KeyboardInterrupt):
             print("Ogiltigt val eller avbrutet, spelar första kortet.")
             idx = 0
+        # For simplicity we play discard via engine wrapper
         return engine.play_discard(player, player.hand[idx])
+
     return selector
 
 
 def run_session(seed: int, rounds: int, interactive: bool):
     engine = GameEngine(seed=seed, ai_enabled=True)
-    action_selector = _interactive_selector(engine) if interactive else None
+    action_selector = None
+    if interactive:
+        action_selector = _interactive_selector(engine)
+
     result = engine.play_session(rounds=rounds, action_selector=action_selector)
+
     print("==== Session Summary ====")
     for name, total in result.cumulative.items():
         print(f"{name}: {total}")
-    if result.ai_values:
+    if hasattr(result, "ai_values") and result.ai_values:
         print("AI values:", result.ai_values)
 
 
