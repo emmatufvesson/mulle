@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 import argparse
-import sys
 
 from ..models.board import Board
 from ..models.card import Card
+from ..models.player import Player
 from ..rules.capture import (
     ActionResult,
     CandidateAction,
@@ -113,7 +113,7 @@ class TrainingEnvironment:
         return max(actions, key=lambda a: getattr(a, "predicted_reward", 0.0))
 
     def _apply_action(
-        self, player, action: Optional[CandidateAction]
+        self, player: Player, action: Optional[CandidateAction]
     ) -> ActionResult:
         if action is None:
             return auto_play_turn(self.engine.board, player, self.round_number)
@@ -125,7 +125,8 @@ class TrainingEnvironment:
         captured_len = len(getattr(result, "captured", []))
         mulle_pairs_len = len(getattr(result, "mulle_pairs", []))
         build_created = bool(getattr(result, "build_created", False))
-        return float(captured_len + 10 * mulle_pairs_len + (2 if build_created else 0))
+        # Align reward calculation with enumerate_candidate_actions: include played card (+1), mulle multiplier 5
+        return float(captured_len + 1 + 5 * mulle_pairs_len + (2 if build_created else 0))
 
     def _build_observation(self) -> TrainingObservation:
         player = self.engine.players[0]
@@ -144,7 +145,7 @@ def _format_action(action: Optional[CandidateAction]) -> str:
     return f"{action.category} (reward≈{action.predicted_reward:.2f})"
 
 
-def _run_cli(seed: int, max_steps: int) -> int:
+def _run_cli(seed: int, max_steps: int):
     env = TrainingEnvironment(seed=seed)
     obs = env.start()
     print("Startar träningsomgång")
@@ -166,20 +167,18 @@ def _run_cli(seed: int, max_steps: int) -> int:
         for name, total in info["scores"].items():
             print(f"- {name}: {total}")
     elif not done:
-        print("Maxsteg nått innan omgången avslutades.")
-
-    return 0
+        print("Maxsteg uppnått innan omgången avslutades.")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[List[str]] = None):
     parser = argparse.ArgumentParser(description="Starta en enkel träningsmiljö")
     parser.add_argument("--seed", type=int, default=42, help="Slumpfrö för kortleken")
     parser.add_argument(
         "--max-steps", type=int, default=50, help="Maximalt antal steg att spela upp"
     )
     args = parser.parse_args(argv)
-    return _run_cli(seed=args.seed, max_steps=args.max_steps)
+    _run_cli(seed=args.seed, max_steps=args.max_steps)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
