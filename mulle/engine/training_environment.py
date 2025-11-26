@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 import argparse
-import sys
 
 from ..models.board import Board
 from ..models.card import Card
@@ -146,7 +145,7 @@ def _format_action(action: Optional[CandidateAction]) -> str:
     return f"{action.category} (reward≈{action.predicted_reward:.2f})"
 
 
-def _run_cli(seed: int, max_steps: int) -> int:
+def _run_cli(seed: int, max_steps: int):
     env = TrainingEnvironment(seed=seed)
     obs = env.start()
     print("Startar träningsomgång")
@@ -170,18 +169,16 @@ def _run_cli(seed: int, max_steps: int) -> int:
     elif not done:
         print("Maxsteg uppnått innan omgången avslutades.")
 
-    return 0
 
-
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[List[str]] = None):
     parser = argparse.ArgumentParser(description="Starta en enkel träningsmiljö")
     parser.add_argument("--seed", type=int, default=42, help="Slumpfrö för kortleken")
     parser.add_argument(
         "--max-steps", type=int, default=50, help="Maximalt antal steg att spela upp"
     )
     args = parser.parse_args(argv)
-    return _run_cli(seed=args.seed, max_steps=args.max_steps)
+    _run_cli(seed=args.seed, max_steps=args.max_steps)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
