@@ -1,8 +1,11 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
+import argparse
+import sys
 
 from ..models.board import Board
 from ..models.card import Card
+from ..models.player import Player
 from ..rules.capture import (
     ActionResult,
     CandidateAction,
@@ -37,6 +40,11 @@ class TrainingEnvironment:
         self.engine = GameEngine(seed=seed, ai_enabled=False)
         self.round_number = 1
         self.done = False
+
+    def start(self) -> TrainingObservation:
+        """Alias for :meth:`reset` to make CLI usage more readable."""
+
+        return self.reset()
 
     # --- public API ---
     def reset(self) -> TrainingObservation:
@@ -106,7 +114,7 @@ class TrainingEnvironment:
         return max(actions, key=lambda a: getattr(a, "predicted_reward", 0.0))
 
     def _apply_action(
-        self, player, action: Optional[CandidateAction]
+        self, player: Player, action: Optional[CandidateAction]
     ) -> ActionResult:
         if action is None:
             return auto_play_turn(self.engine.board, player, self.round_number)
@@ -129,3 +137,50 @@ class TrainingEnvironment:
             round_number=self.round_number,
             legal_actions=self.legal_actions(),
         )
+
+
+def _format_action(action: Optional[CandidateAction]) -> str:
+    if action is None:
+        return "AUTO"
+    return f"{action.category} (reward≈{action.predicted_reward:.2f})"
+
+
+def _run_cli(seed: int, max_steps: int) -> int:
+    env = TrainingEnvironment(seed=seed)
+    obs = env.start()
+    print("Startar träningsomgång")
+    print(f"- Kort på hand: {len(obs.hand)}")
+    print(f"- Motståndaren har {obs.opponent_cards} kort")
+    print()
+
+    step = 0
+    done = False
+    while not done and step < max_steps:
+        action = obs.legal_actions[0] if obs.legal_actions else None
+        print(f"Steg {step+1}: spelar {_format_action(action)}")
+        obs, reward, done, info = env.step(action)
+        print(f"  Belöning: {reward}\n")
+        step += 1
+
+    if done and "scores" in info:
+        print("Omgången är klar. Slutpoäng:")
+        for name, total in info["scores"].items():
+            print(f"- {name}: {total}")
+    elif not done:
+        print("Maxsteg nått innan omgången avslutades.")
+
+    return 0
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="Starta en enkel träningsmiljö")
+    parser.add_argument("--seed", type=int, default=42, help="Slumpfrö för kortleken")
+    parser.add_argument(
+        "--max-steps", type=int, default=50, help="Maximalt antal steg att spela upp"
+    )
+    args = parser.parse_args(argv)
+    return _run_cli(seed=args.seed, max_steps=args.max_steps)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
