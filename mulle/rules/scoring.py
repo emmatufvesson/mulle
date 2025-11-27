@@ -36,7 +36,8 @@ def score_round(players: list[Player]) -> list[ScoreBreakdown]:
         bonus = 0
         if intake_pts > 20:
             bonus = (intake_pts - 20) * 2
-        total = mulle_pts + tabbe_pts + intake_pts + bonus
+        # Total = mulle + tabbe + bonus (intake räknas INTE i totalen)
+        total = mulle_pts + tabbe_pts + bonus
         breakdowns.append(ScoreBreakdown(p, mulle_pts, tabbe_pts, intake_pts, bonus, total))
     return breakdowns
 

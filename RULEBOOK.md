@@ -277,14 +277,16 @@ Om dina intake-poäng > 20:
 **Exempel**: Intake = 24 → Bonus = (24-20) × 2 = 8 poäng
 
 ### 8.5 Total Poäng
-**Total = Mulle + Tabbe + Intake + Bonus**
+**Total = Mulle + Tabbe + Bonus**
+
+**Viktigt**: Intake-poäng räknas INTE in i totalen. De används endast för att beräkna bonus.
 
 **Exempel**:
 - Mulle: 28p
 - Tabbe: 2p
-- Intake: 24p
-- Bonus: 8p
-- **Total: 62p**
+- Intake: 24p (används för bonusberäkning, adderas EJ till total)
+- Bonus: 8p (eftersom intake > 20)
+- **Total: 28 + 2 + 8 = 38p**
 
 ---
 

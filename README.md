@@ -101,8 +101,9 @@ mulle-1/
 #### ✅ Poängräkning
 - **Mulle**: Rangvärde per par (A=14, J=11, Q=12, K=13)
 - **Tabbe**: 1p per intag från tomt bord
-- **Intake**: Specifika kort ger 1-3 poäng (SP A=3p)
+- **Intake**: Specifika kort ger 1-3 poäng (SP A=3p) — används endast för bonusberäkning
 - **Bonus**: (intake-20)×2 vid >20 intake-poäng
+- **Total**: Mulle + Tabbe + Bonus (OBS: Intake ingår EJ i totalen)
 
 #### ✅ AI och Automation
 - **SimpleLearningAI**: Lärande AI med exploration/exploitation
