@@ -318,7 +318,7 @@ Bidrag är välkomna! För större förändringar, öppna först en issue för a
 ### Development Setup
 ```bash
 # Fork och klona
-git clone https://github.com/dittanvändare/mulle.git
+git clone https://github.com/<your-username>/mulle.git
 cd mulle
 
 # Skapa branch
