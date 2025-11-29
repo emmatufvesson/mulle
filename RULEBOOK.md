@@ -224,6 +224,17 @@ Konsolidera alla kort på bordet med samma bordvärde till ett låst bygge.
 
 Om du inte vill (eller kan) göra capture/build/trotta, slänger du kortet till bordet.
 
+### Trail-restriktion (Byggrestriktionsregeln)
+Du kan **inte** släppa (trail) kort till bordet om du har ett eller flera byggen:
+- Du måste först ta in (capture) dina byggen innan trail tillåts
+- Regeln gäller för både låsta och olåsta byggen
+- Feed och trotta är fortfarande tillåtet (se nedan)
+- Skapa nya byggen och bygga om befintliga är också tillåtet
+
+**Varför denna regel?**
+Regeln förhindrar att en spelare "överger" sina byggen genom att släppa kort. 
+Byggen representerar en reservation av kort som måste fullbordas.
+
 ### Feed (Automatisk Trotta)
 Om du har ett bygge med samma bordvärde som kortet du slänger:
 - Kortet läggs **automatiskt** till bygget (feed)
@@ -353,6 +364,7 @@ Prioritering vid automatiska drag:
 - ✅ Mulle-detektering (exakt 2 identiska)
 - ✅ Reservationskort validering
 - ✅ Bygga upp/ner val för öppna byggen
+- ✅ Trail-restriktion (kan inte släppa kort med byggen på bordet)
 
 ### Testsvit
 - `test_build.py`: Byggregler och absorption
@@ -361,8 +373,9 @@ Prioritering vid automatiska drag:
 - `test_special_cards.py`: Specialvärden (A, SP 2, RU 10)
 - `test_trotta.py`: Trotta-konsolidering
 - `test_game_engine.py`: GameEngine integration
+- `test_trail_with_builds.py`: Trail-restriktion vid byggen
 
-**Alla tester passar** (20 st)
+**Alla tester passar** (28 st)
 
 ---
 
@@ -398,7 +411,7 @@ Prioritering vid automatiska drag:
 
 ---
 
-**Dokumentversion**: 2025-11-27  
-**Kodversion**: Synkad med commit bca3bc7 (GameEngine + learning_ai introduction)
+**Dokumentversion**: 2025-11-29  
+**Kodversion**: Synkad med trail-restriktionsregel (InvalidAction vid släpp med byggen)
 
 För tekniska detaljer och implementation notes, se README.md och källkoden i `mulle/`-katalogen.
