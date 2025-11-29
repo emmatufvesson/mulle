@@ -26,7 +26,7 @@ def player_has_builds(board: Board, player: Player) -> bool:
     return False
 
 
-def ensure_can_trail(board: Board, player: Player) -> None:
+def ensure_can_trail(board: Board, player: Player, card: Card = None) -> None:
     """
     Kontrollerar om en spelare får 'släppa' (trail) ett kort till bordet.
     
@@ -41,6 +41,11 @@ def ensure_can_trail(board: Board, player: Player) -> None:
         InvalidAction: Om spelaren har byggen på bordet
     """
     if player_has_builds(board, player):
-        raise InvalidAction(
-            f"Kan inte släppa kort: {player.name} har byggen på bordet som måste tas in först"
-        )
+        if card:
+            raise InvalidAction(
+                f"Kan inte släppa {card.code()} - {player.name} har byggen på bordet som måste tas in först!"
+            )
+        else:
+            raise InvalidAction(
+                f"Kan inte släppa kort: {player.name} har byggen på bordet som måste tas in först"
+            )
