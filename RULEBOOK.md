@@ -20,7 +20,7 @@ På varje tur spelar du exakt ett kort från din hand och utför **en** av följ
 1. **Capture** (Intag) — Ta in kort från bordet
 2. **Build** (Bygge) — Skapa eller utöka ett bygge
 3. **Trotta** — Konsolidera kort av samma värde till ett låst bygge
-4. **Discard** (Släng) — Lägg kort på bordet
+4. **Discard** (Släng) — Lägg kort på bordet (**OBS:** Ej tillåtet om du har byggen på bordet!)
 
 ---
 
@@ -224,22 +224,18 @@ Konsolidera alla kort på bordet med samma bordvärde till ett låst bygge.
 
 Om du inte vill (eller kan) göra capture/build/trotta, slänger du kortet till bordet.
 
-### Trail-restriktion (Byggrestriktionsregeln)
-Du kan **inte** släppa (trail) kort till bordet om du har ett eller flera byggen:
-- Du måste först ta in (capture) dina byggen innan trail tillåts
-- Regeln gäller för både låsta och olåsta byggen
-- Feed och trotta är fortfarande tillåtet (se nedan)
-- Skapa nya byggen och bygga om befintliga är också tillåtet
-
-**Varför denna regel?**
-Regeln förhindrar att en spelare "överger" sina byggen genom att släppa kort. 
-Byggen representerar en reservation av kort som måste fullbordas.
+### Trail-begränsning (Ny Regel)
+Du kan **inte** släppa (trail) ett kort till bordet om du har ett eller flera byggen på bordet:
+- Regeln gäller oavsett om bygget är låst eller olåst
+- Du måste först ta in (capture) dina byggen innan du kan släppa kort
+- Denna begränsning gäller **inte** för feed (se nedan), build eller trotta
 
 ### Feed (Automatisk Trotta)
 Om du har ett bygge med samma bordvärde som kortet du slänger:
 - Kortet läggs **automatiskt** till bygget (feed)
 - Bygget låses
 - Ingen ny hög skapas
+- Detta är tillåtet även om du har andra byggen på bordet
 
 **Exempel**:
 - Du har ett 12-bygge

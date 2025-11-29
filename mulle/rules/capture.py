@@ -50,6 +50,17 @@ def is_card_reserved_for_build(board: Board, player: Player, card: Card) -> Buil
                 return build
     return None
 
+
+def player_has_builds(board: Board, player: Player) -> bool:
+    """
+    Check if a player has any builds on the board (locked or unlocked).
+    Returns True if the player owns at least one build.
+    """
+    for build in board.list_builds():
+        if build.owner == player.name:
+            return True
+    return False
+
 # Check if player may build (must own build or extend single pile) and have reservation card
 
 def can_build(board: Board, player: Player, base_pile: Pile, added_card: Card) -> bool:
@@ -206,7 +217,7 @@ def perform_discard(board: Board, player: Player, card: Card) -> ActionResult:
         raise ValueError(f"Cannot discard {card.code()} - it's reserved to capture your {reserved_build.value}-build!")
 
     # Check if player has a build with the same value as the card being discarded
-    # If so, add the card to that build (trotta/feed) - this is allowed even with builds
+    # If so, add the card to that build (trotta/feed)
     card_value = card.value_on_board()
     player_builds = [b for b in board.list_builds() if b.owner == player.name and b.value == card_value]
 
@@ -217,8 +228,12 @@ def perform_discard(board: Board, player: Player, card: Card) -> ActionResult:
         build.add_trotta_card(card)
         return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=False)
 
-    # Normal discard (trail) - not allowed if player has builds on the board
-    ensure_can_trail(board, player)
+    # New rule: Cannot trail/discard if player has any builds on the board
+    # The player must first capture their builds before trailing
+    if player_has_builds(board, player):
+        raise ValueError(f"Kan inte släppa {card.code()} - du har byggen på bordet som måste tas in först!")
+
+    # Otherwise, normal discard
     player.remove_from_hand(card)
     board.add_card(card)
     return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=False)
@@ -295,7 +310,7 @@ def perform_trotta(board: Board, player: Player, card: Card, round_number: int=1
 
     return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=True)
 
-# Heuristic priority: best combination with mulle > best largest combination > single identical (mulle) > single match > build > discard
+# Heuristic priority: best combination with mulle > best largest combination > single identical (mulle) > single match > build > trotta > discard
 
 def auto_play_turn(board: Board, player: Player, round_number: int=1) -> ActionResult:
     # Try each card for best combination capture
@@ -337,8 +352,35 @@ def auto_play_turn(board: Board, player: Player, round_number: int=1) -> ActionR
             if can_build(board, player, pile, card):
                 return perform_build(board, player, pile, card, round_number)
 
-    # Discard
-    return perform_discard(board, player, player.hand[0])
+    # Try trotta before discard (if player has matching piles on board)
+    for card in player.hand:
+        try:
+            return perform_trotta(board, player, card, round_number)
+        except ValueError:
+            continue  # This card can't be trottad, try next
+
+    # Discard (will raise error if player has builds and card doesn't match build value)
+    # Optimize: if player has builds, only try cards that might feed to a build
+    has_builds = player_has_builds(board, player)
+    if has_builds:
+        # Player has builds - only try cards that match a build value (for feed)
+        player_build_values = {b.value for b in board.list_builds() if b.owner == player.name}
+        for card in player.hand:
+            if card.value_on_board() in player_build_values:
+                try:
+                    return perform_discard(board, player, card)
+                except ValueError:
+                    continue  # This card can't be discarded, try next
+    else:
+        # No builds - try any card for normal discard
+        for card in player.hand:
+            try:
+                return perform_discard(board, player, card)
+            except ValueError:
+                continue  # This card can't be discarded, try next
+
+    # If we reach here, the player cannot make any valid move (should not happen in normal gameplay)
+    raise ValueError("Spelaren kan inte göra något giltigt drag - detta borde inte hända!")
 
 def enumerate_candidate_actions(board: Board, player: Player, round_number: int=1) -> List[CandidateAction]:
     candidates: List[CandidateAction] = []
@@ -369,10 +411,31 @@ def enumerate_candidate_actions(board: Board, player: Player, round_number: int=
                 def make_executor(card_local, pile_local):
                     return lambda: perform_build(board, player, pile_local, card_local, round_number)
                 candidates.append(CandidateAction('build', reward, make_executor(card, pile)))
-    # Discard fallback (choose one representative) - only if player has no builds
-    if player.hand and not player_has_builds(board, player):
-        card = player.hand[0]
-        def discard_exec(card=card):
-            return perform_discard(board, player, card)
-        candidates.append(CandidateAction('discard', 0.0, discard_exec))
+    # Discard fallback (only if player doesn't have builds, or card can be fed to matching build)
+    if player.hand:
+        has_builds = player_has_builds(board, player)
+        for card in player.hand:
+            # First check if card is reserved - reserved cards cannot be discarded/fed
+            reserved = is_card_reserved_for_build(board, player, card)
+            if reserved is not None:
+                continue  # Skip this card, it's reserved
+            
+            # Check if this card can be discarded
+            can_discard = False
+            if not has_builds:
+                # Player has no builds, can discard
+                can_discard = True
+            else:
+                # Player has builds - can only "discard" if card matches a build value (feed)
+                card_value = card.value_on_board()
+                player_builds_matching = [b for b in board.list_builds() if b.owner == player.name and b.value == card_value]
+                can_discard = bool(player_builds_matching)
+            
+            if can_discard:
+                def discard_exec(card=card):
+                    return perform_discard(board, player, card)
+                candidates.append(CandidateAction('discard', 0.0, discard_exec))
+                # Only add one discard option since discard is a fallback action with zero reward.
+                # Adding multiple discard options would not improve AI decision-making.
+                break
     return candidates
