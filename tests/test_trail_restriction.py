@@ -11,6 +11,7 @@ The player can still:
 """
 
 from mulle.models.board import Board
+from mulle.models.build import Build
 from mulle.models.card import Card
 from mulle.models.player import Player
 from mulle.rules.capture import (
@@ -75,16 +76,8 @@ def test_player_with_build_can_create_new_build():
     assert result.build_created
     assert player_has_builds(board, player)
     
-    # Now player creates another build: SP 3 + SP 5 = 8
-    sp3_pile = [p for p in board.piles if not hasattr(p, 'locked') or not p.locked][0]
-    if hasattr(sp3_pile, 'cards'):
-        pass  # It's a build
-    else:
-        # Find the SP 3 pile
-        for pile in board.piles:
-            if not hasattr(pile, 'locked') and len(pile) == 1 and pile[0].code() == "SP 3":
-                sp3_pile = pile
-                break
+    # Find the SP 3 pile to create another build
+    sp3_pile = [p for p in board.piles if not isinstance(p, Build) and len(p) == 1 and p[0].code() == "SP 3"][0]
     
     assert can_build(board, player, sp3_pile, sp5)
     result2 = perform_build(board, player, sp3_pile, sp5, round_number=1)

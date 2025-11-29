@@ -359,12 +359,24 @@ def auto_play_turn(board: Board, player: Player, round_number: int=1) -> ActionR
             continue  # This card can't be trottad, try next
 
     # Discard (will raise error if player has builds and card doesn't match build value)
-    # Try each card to find one that can be discarded (either trail or feed to build)
-    for card in player.hand:
-        try:
-            return perform_discard(board, player, card)
-        except ValueError:
-            continue  # This card can't be discarded, try next
+    # Optimize: if player has builds, only try cards that might feed to a build
+    has_builds = player_has_builds(board, player)
+    if has_builds:
+        # Player has builds - only try cards that match a build value (for feed)
+        player_build_values = {b.value for b in board.list_builds() if b.owner == player.name}
+        for card in player.hand:
+            if card.value_on_board() in player_build_values:
+                try:
+                    return perform_discard(board, player, card)
+                except ValueError:
+                    continue  # This card can't be discarded, try next
+    else:
+        # No builds - try any card for normal discard
+        for card in player.hand:
+            try:
+                return perform_discard(board, player, card)
+            except ValueError:
+                continue  # This card can't be discarded, try next
 
     # If we reach here, the player cannot make any valid move (should not happen in normal gameplay)
     raise ValueError("Spelaren kan inte göra något giltigt drag - detta borde inte hända!")
@@ -422,5 +434,7 @@ def enumerate_candidate_actions(board: Board, player: Player, round_number: int=
                 def discard_exec(card=card):
                     return perform_discard(board, player, card)
                 candidates.append(CandidateAction('discard', 0.0, discard_exec))
-                break  # Only add one discard option
+                # Only add one discard option since discard is a fallback action with zero reward.
+                # Adding multiple discard options would not improve AI decision-making.
+                break
     return candidates
