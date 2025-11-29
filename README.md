@@ -88,6 +88,7 @@ mulle-1/
 - **Build (Byggen)**: Öppna/låsta byggen med ägarsystem
 - **Trotta**: Konsolidera kort av samma värde till låst bygge
 - **Discard/Feed**: Automatisk feed till egna byggen
+- **Trail-begränsning**: Kan ej släppa kort om du har byggen på bordet
 - **Specialvärden**: A=14, SP 2=15, RU 10=16 (endast via byggen)
 - **Mulle-detektering**: Exakt 2 identiska kort = mulle
 - **Absorption**: Automatisk absorption av single/2-korts högar vid bygge
@@ -97,6 +98,7 @@ mulle-1/
 - **Låsningsregler**: Endast vid merge/absorption/trotta
 - **Bygga upp/ner**: Explicit val vid ombyggnad av öppna byggen
 - **Specialvärdeskrav**: 14/15/16 måste byggas innan capture
+- **Trail-restriktion**: Måste ta in byggen innan man kan släppa kort
 
 #### ✅ Poängräkning
 - **Mulle**: Rangvärde per par (A=14, J=11, Q=12, K=13)
