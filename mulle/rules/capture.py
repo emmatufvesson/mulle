@@ -230,7 +230,7 @@ def perform_discard(board: Board, player: Player, card: Card) -> ActionResult:
     # New rule: Cannot trail/discard if player has any builds on the board
     # The player must first capture their builds before trailing
     if player_has_builds(board, player):
-        raise ValueError(f"Kan inte släppa {card.code()} - du har byggen på bordet som måste tas in först!")
+        raise InvalidAction(f"Kan inte släppa {card.code()} - du har byggen på bordet som måste tas in först!")
 
     # Otherwise, normal discard
     player.remove_from_hand(card)
