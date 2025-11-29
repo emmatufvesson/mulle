@@ -4,6 +4,7 @@ from ..models.card import Card
 from ..models.board import Board, Pile
 from ..models.build import Build
 from ..models.player import Player
+from mulle.rules.validation import InvalidAction 
 
 class ActionResult:
     def __init__(self, played: Card, captured: List[Card], mulle_pairs: List[List[Card]], build_created: bool=False):
