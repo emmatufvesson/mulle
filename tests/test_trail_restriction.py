@@ -22,6 +22,7 @@ from mulle.rules.capture import (
     perform_trotta,
     player_has_builds,
 )
+from mulle.rules.validation import InvalidAction
 
 
 def test_player_with_build_cannot_trail():
@@ -47,8 +48,8 @@ def test_player_with_build_cannot_trail():
     # Now player tries to discard SP 5 to the table - should fail
     try:
         perform_discard(board, player, sp5)
-        assert False, "Should have raised ValueError for trail with builds"
-    except ValueError as e:
+        assert False, "Should have raised InvalidAction for trail with builds"
+    except InvalidAction as e:
         assert "byggen på bordet" in str(e).lower() or "har byggen" in str(e).lower()
 
 
@@ -226,8 +227,8 @@ def test_player_with_locked_build_cannot_trail():
     # Now player tries to discard SP 8 - should fail (has build on board)
     try:
         perform_discard(board, player, sp8)
-        assert False, "Should have raised ValueError for trail with locked build"
-    except ValueError as e:
+        assert False, "Should have raised InvalidAction for trail with locked build"
+    except InvalidAction as e:
         assert "byggen på bordet" in str(e).lower() or "har byggen" in str(e).lower()
 
 
@@ -261,6 +262,6 @@ def test_player_with_unlocked_build_cannot_trail():
     # Now player tries to discard RU 2 - should fail (has build on board)
     try:
         perform_discard(board, player, ru2)
-        assert False, "Should have raised ValueError for trail with build"
-    except ValueError as e:
+        assert False, "Should have raised InvalidAction for trail with build"
+    except InvalidAction as e:
         assert "byggen på bordet" in str(e).lower() or "har byggen" in str(e).lower()
