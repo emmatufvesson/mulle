@@ -4,6 +4,7 @@ from ..models.card import Card
 from ..models.board import Board, Pile
 from ..models.build import Build
 from ..models.player import Player
+from .validation import InvalidAction, ensure_can_trail, player_has_builds
 
 class ActionResult:
     def __init__(self, played: Card, captured: List[Card], mulle_pairs: List[List[Card]], build_created: bool=False):
@@ -205,7 +206,7 @@ def perform_discard(board: Board, player: Player, card: Card) -> ActionResult:
         raise ValueError(f"Cannot discard {card.code()} - it's reserved to capture your {reserved_build.value}-build!")
 
     # Check if player has a build with the same value as the card being discarded
-    # If so, add the card to that build (trotta)
+    # If so, add the card to that build (trotta/feed) - this is allowed even with builds
     card_value = card.value_on_board()
     player_builds = [b for b in board.list_builds() if b.owner == player.name and b.value == card_value]
 
@@ -216,7 +217,8 @@ def perform_discard(board: Board, player: Player, card: Card) -> ActionResult:
         build.add_trotta_card(card)
         return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=False)
 
-    # Otherwise, normal discard
+    # Normal discard (trail) - not allowed if player has builds on the board
+    ensure_can_trail(board, player)
     player.remove_from_hand(card)
     board.add_card(card)
     return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=False)
@@ -367,8 +369,8 @@ def enumerate_candidate_actions(board: Board, player: Player, round_number: int=
                 def make_executor(card_local, pile_local):
                     return lambda: perform_build(board, player, pile_local, card_local, round_number)
                 candidates.append(CandidateAction('build', reward, make_executor(card, pile)))
-    # Discard fallback (choose one representative)
-    if player.hand:
+    # Discard fallback (choose one representative) - only if player has no builds
+    if player.hand and not player_has_builds(board, player):
         card = player.hand[0]
         def discard_exec(card=card):
             return perform_discard(board, player, card)
