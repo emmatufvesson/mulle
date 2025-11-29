@@ -4,7 +4,7 @@ from ..models.card import Card
 from ..models.board import Board, Pile
 from ..models.build import Build
 from ..models.player import Player
-from mulle.rules.validation import InvalidAction 
+from mulle.rules.validation import InvalidAction, player_has_builds 
 
 class ActionResult:
     def __init__(self, played: Card, captured: List[Card], mulle_pairs: List[List[Card]], build_created: bool=False):
@@ -50,16 +50,6 @@ def is_card_reserved_for_build(board: Board, player: Player, card: Card) -> Buil
                 return build
     return None
 
-
-def player_has_builds(board: Board, player: Player) -> bool:
-    """
-    Check if a player has any builds on the board (locked or unlocked).
-    Returns True if the player owns at least one build.
-    """
-    for build in board.list_builds():
-        if build.owner == player.name:
-            return True
-    return False
 
 # Check if player may build (must own build or extend single pile) and have reservation card
 
