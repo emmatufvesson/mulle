@@ -4,7 +4,7 @@ from ..models.card import Card
 from ..models.board import Board, Pile
 from ..models.build import Build
 from ..models.player import Player
-from .validation import InvalidAction, ensure_can_trail, player_has_builds
+from mulle.rules.validation import InvalidAction 
 
 class ActionResult:
     def __init__(self, played: Card, captured: List[Card], mulle_pairs: List[List[Card]], build_created: bool=False):
@@ -231,7 +231,7 @@ def perform_discard(board: Board, player: Player, card: Card) -> ActionResult:
     # New rule: Cannot trail/discard if player has any builds on the board
     # The player must first capture their builds before trailing
     if player_has_builds(board, player):
-        raise ValueError(f"Kan inte släppa {card.code()} - du har byggen på bordet som måste tas in först!")
+        raise InvalidAction(f"Kan inte släppa {card.code()} - du har byggen på bordet som måste tas in först!")
 
     # Otherwise, normal discard
     player.remove_from_hand(card)
