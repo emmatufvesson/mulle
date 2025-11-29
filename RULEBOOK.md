@@ -20,7 +20,7 @@ På varje tur spelar du exakt ett kort från din hand och utför **en** av följ
 1. **Capture** (Intag) — Ta in kort från bordet
 2. **Build** (Bygge) — Skapa eller utöka ett bygge
 3. **Trotta** — Konsolidera kort av samma värde till ett låst bygge
-4. **Discard** (Släng) — Lägg kort på bordet
+4. **Discard** (Släng) — Lägg kort på bordet (**OBS:** Ej tillåtet om du har byggen på bordet!)
 
 ---
 
@@ -224,11 +224,18 @@ Konsolidera alla kort på bordet med samma bordvärde till ett låst bygge.
 
 Om du inte vill (eller kan) göra capture/build/trotta, slänger du kortet till bordet.
 
+### Trail-begränsning (Ny Regel)
+Du kan **inte** släppa (trail) ett kort till bordet om du har ett eller flera byggen på bordet:
+- Regeln gäller oavsett om bygget är låst eller olåst
+- Du måste först ta in (capture) dina byggen innan du kan släppa kort
+- Denna begränsning gäller **inte** för feed (se nedan), build eller trotta
+
 ### Feed (Automatisk Trotta)
 Om du har ett bygge med samma bordvärde som kortet du slänger:
 - Kortet läggs **automatiskt** till bygget (feed)
 - Bygget låses
 - Ingen ny hög skapas
+- Detta är tillåtet även om du har andra byggen på bordet
 
 **Exempel**:
 - Du har ett 12-bygge
