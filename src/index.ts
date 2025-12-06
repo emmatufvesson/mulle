@@ -1,10 +1,9 @@
-/**
- * Mulle Card Game Engine - TypeScript Port
- *
- * This is the main entry point for the TypeScript port of the Mulle game engine.
- * The port will progressively migrate Python modules into TypeScript.
- */
+// Entry point for Mulle TypeScript port
 
-console.log('Mulle TypeScript Engine - Skeleton');
+export function start() {
+  console.log('Mulle TS port initialized');
+}
 
-export {};
+if (require.main === module) {
+  start();
+}
