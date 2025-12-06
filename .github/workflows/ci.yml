@@ -9,6 +9,9 @@ on:
       - 'legacy-import-*'
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   python-tests:
     runs-on: ubuntu-latest
