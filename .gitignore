@@ -1,3 +1,15 @@
+# Python
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Node.js / TypeScript
+node_modules/
+dist/
+*.js.map
+*.d.ts.map
+coverage/
+.npm
+
+# IDE
+.vscode/
