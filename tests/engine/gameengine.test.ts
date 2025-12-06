@@ -81,7 +81,7 @@ describe('GameEngine', () => {
       ];
 
       const engine = new GameEngine(players);
-      expect(() => engine.deal(30)).toThrow('Not enough cards in deck');
+      expect(() => engine.deal(30)).toThrow(/Not enough cards in deck/);
     });
 
     test('throws error when dealing zero or negative cards', () => {
@@ -155,9 +155,7 @@ describe('GameEngine', () => {
       ];
 
       // Create a simple deterministic RNG that returns 0.5 always
-      let callCount = 0;
       const fakeRng = () => {
-        callCount++;
         return 0.5;
       };
 
