@@ -1,7 +1,6 @@
 import { Board } from '../../src/models/Board';
 import { Card } from '../../src/models/Card';
 import { Player } from '../../src/models/Player';
-import { performDiscard } from '../../src/rules/capture';
 import { ensureCanTrail } from '../../src/rules/validation';
 
 describe('Trail restriction and tabbe', () => {
