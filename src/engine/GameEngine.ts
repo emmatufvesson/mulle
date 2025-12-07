@@ -44,6 +44,7 @@ export class GameEngine {
 
   endTurn(): void {
     if (this.currentPlayerIndex === null) return;
+    if (this.players.length === 0) return;
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
   }
 
