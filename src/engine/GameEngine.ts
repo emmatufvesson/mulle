@@ -62,7 +62,9 @@ export class GameEngine {
     };
   }
 
-  // Expose minimal API for tests
+  // Expose minimal API for tests.
+  // WARNING: This method exposes internal Player objects and allows external mutation.
+  // Only use in trusted test code. For production, implement deep copy logic if needed.
   getPlayers(): Player[] {
     return this.players.map(p => p);
   }
