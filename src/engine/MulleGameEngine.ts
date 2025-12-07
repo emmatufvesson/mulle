@@ -234,7 +234,7 @@ export class MulleGameEngine {
     }
     
     this.dealCards();
-    this.currentPlayerIndex = 0;
+    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
   }
 
   /**
