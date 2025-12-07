@@ -281,10 +281,11 @@ export function generateCaptureCombinations(board: Board, card: Card): Pile[][] 
     for (let j = idx; j < sortedMasks.length; j++) {
       const mask = sortedMasks[j];
       // Check if any index in mask is already used
-      if (!mask.some(m => usedNow.has(m))) {
+      const hasOverlap = mask.some(m => usedNow.has(m));
+      if (!hasOverlap) {
         // Choose this mask
         chosen.push(mask);
-        const newUsed = new Set([...usedNow, ...mask]);
+        const newUsed = new Set([...Array.from(usedNow), ...mask]);
         backtrack(j + 1, newUsed, chosen);
         chosen.pop();
       }
