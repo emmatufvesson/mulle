@@ -114,7 +114,7 @@ export function performBuild(
   roundNumber: number = 1,
   declaredValue?: number
 ): ActionResult {
-  const build = board.createBuild(basePile, addedCard, player.name, roundNumber, declaredValue);
+  board.createBuild(basePile, addedCard, player.name, roundNumber, declaredValue);
   player.removeFromHand(addedCard);
   return new ActionResult(addedCard, [], [], true);
 }
