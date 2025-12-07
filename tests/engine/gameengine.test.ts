@@ -43,6 +43,19 @@ test('deterministic shuffle results in predictable dealing', () => {
   const state = engine.getState();
   expect(state.players.reduce((s, p) => s + p.handSize, 0)).toBe(2);
   expect(state.deckSize).toBe(50);
+  
+  // Verify the actual cards dealt are in deterministic order
+  const p1 = engine.getPlayers().find(p => p.id === 'p1')!;
+  const p2 = engine.getPlayers().find(p => p.id === 'p2')!;
+  const p1Cards = p1.hand.cardsArray();
+  const p2Cards = p2.hand.cardsArray();
+  
+  // With the given seed sequence, we can verify the first cards dealt
+  // The shuffle is deterministic, so the cards should always be the same
+  expect(p1Cards.length).toBe(1);
+  expect(p2Cards.length).toBe(1);
+  expect(p1Cards[0].toString()).toBe('3 of spades');
+  expect(p2Cards[0].toString()).toBe('7 of clubs');
 });
 
 test('deal throws error when not enough cards in deck', () => {
