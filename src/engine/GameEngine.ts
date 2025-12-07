@@ -28,6 +28,15 @@ export class GameEngine {
   }
 
   deal(cardsPerPlayer: number): void {
+    const requiredCards = cardsPerPlayer * this.players.length;
+    const availableCards = this.deck.size();
+    
+    if (requiredCards > availableCards) {
+      throw new Error(
+        `Not enough cards in deck: need ${requiredCards} but only ${availableCards} available`
+      );
+    }
+    
     for (let i = 0; i < cardsPerPlayer; i++) {
       for (const player of this.players) {
         const drawn = this.deck.draw(1)[0];
