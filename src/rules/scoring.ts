@@ -4,7 +4,7 @@ import { Card } from '../models/Card';
 /**
  * Cards that give 1 intake point
  */
-const INTAKE_POINTS_1: Record<string, string[]> = {
+export const INTAKE_POINTS_1: Record<string, string[]> = {
   'SP': ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'],
   'RU': ['A'],
   'HJ': ['A'],
@@ -14,7 +14,7 @@ const INTAKE_POINTS_1: Record<string, string[]> = {
 /**
  * Cards that give 2 intake points
  */
-const INTAKE_POINTS_2: Record<string, string[]> = {
+export const INTAKE_POINTS_2: Record<string, string[]> = {
   'SP': ['2', 'A'],
   'RU': ['10']
 };
