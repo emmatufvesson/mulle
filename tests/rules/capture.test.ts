@@ -4,7 +4,6 @@ import { Player } from '../../src/models/Player';
 import { 
   boardPileValue, 
   canBuild, 
-  isCardReservedForBuild,
   performCapture,
   performBuild,
   generateCaptureCombinations
