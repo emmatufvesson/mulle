@@ -382,9 +382,353 @@ export function performCapture(
 }
 
 // ============================================================================
-// TODO: Additional functions to be ported
+// TROTTA (Consolidate matching cards)
 // ============================================================================
 
-// export function performTrotta(...): ActionResult { ... }
-// export function autoPlayTurn(...): ActionResult { ... }
-// export function enumerateCandidateActions(...): CandidateAction[] { ... }
+/**
+ * Trotta: create a build by gathering all matching value singles and 2-card combinations
+ * OR add a card to an existing build with same value (even if locked)
+ */
+export function performTrotta(
+  board: Board,
+  player: Player,
+  card: Card,
+  roundNumber: number = 1
+): ActionResult {
+  const targetValue = card.valueOnBoard();
+
+  // First check if player already has a build with this value
+  const playerBuilds = board.listBuilds().filter(
+    b => b.owner === player.name && b.value === targetValue
+  );
+
+  if (playerBuilds.length > 0) {
+    // Add card to existing build (allowed even if locked)
+    const build = playerBuilds[0];
+    player.removeFromHand(card);
+    build.addTrottaCard(card);
+    return new ActionResult(card, [], [], false);
+  }
+
+  // Find all single cards with exact value
+  const directSingles: Pile[] = [];
+  for (const pile of board.piles) {
+    if (!(pile instanceof Build) && pile.length === 1 && pile[0].valueOnBoard() === targetValue) {
+      directSingles.push(pile);
+    }
+  }
+
+  // Find all 2-card piles/builds with total value equal to target
+  const twoCardMatches: Pile[] = [];
+  for (const pile of board.piles) {
+    if (pile instanceof Build && pile.cards.length === 2) {
+      if (pile.value === targetValue) {
+        twoCardMatches.push(pile);
+      }
+    } else if (Array.isArray(pile) && pile.length === 2) {
+      const sum = pile.reduce((s, c) => s + c.valueOnBoard(), 0);
+      if (sum === targetValue) {
+        twoCardMatches.push(pile);
+      }
+    }
+  }
+
+  // Also find all pairs of single cards that sum to target
+  const singlePiles = board.piles.filter(
+    p => !(p instanceof Build) && p.length === 1
+  );
+  
+  for (let i = 0; i < singlePiles.length; i++) {
+    for (let j = i + 1; j < singlePiles.length; j++) {
+      const p1 = singlePiles[i] as Card[];
+      const p2 = singlePiles[j] as Card[];
+      
+      if (p1[0].valueOnBoard() + p2[0].valueOnBoard() === targetValue) {
+        // Add both as separate matches (they'll be absorbed individually)
+        if (!twoCardMatches.includes(p1) && !directSingles.includes(p1)) {
+          twoCardMatches.push(p1);
+        }
+        if (!twoCardMatches.includes(p2) && !directSingles.includes(p2)) {
+          twoCardMatches.push(p2);
+        }
+      }
+    }
+  }
+
+  // Must have at least one matching pile to trotta
+  const allMatches = [...directSingles, ...twoCardMatches];
+  if (allMatches.length === 0) {
+    throw new Error(`No piles matching value ${targetValue} to trotta`);
+  }
+
+  // Trotta requires a reservation card of the same value when creating a new locked build
+  const reservationAvailable = player.hand.some(
+    c => c !== card && c.valueOnBoard() === targetValue
+  );
+  
+  if (!reservationAvailable) {
+    throw new Error('Trotta kräver ett reservationskort med samma värde');
+  }
+
+  // Collect all cards from matched piles
+  const cards = [card]; // Start with played card
+  for (const pile of allMatches) {
+    if (pile instanceof Build) {
+      cards.push(...pile.cards);
+    } else {
+      cards.push(...pile);
+    }
+    board.removePile(pile);
+  }
+
+  // Create locked build
+  const newBuild = new Build(cards, player.name, targetValue, true, roundNumber);
+  board.piles.push(newBuild);
+  player.removeFromHand(card);
+
+  return new ActionResult(card, [], [], true);
+}
+
+// ============================================================================
+// AI HEURISTIC PLAY
+// ============================================================================
+
+/**
+ * Automatically play a turn using heuristic prioritization.
+ * 
+ * Priority order:
+ * 1. Best combination capture with mulle
+ * 2. Best largest combination
+ * 3. Single identical (mulle)
+ * 4. Single value match
+ * 5. Build
+ * 6. Trotta
+ * 7. Discard
+ */
+export function autoPlayTurn(
+  board: Board,
+  player: Player,
+  roundNumber: number = 1
+): ActionResult {
+  // Try each card for best combination capture
+  let bestCombo: {
+    mulleCount: number;
+    size: number;
+    piles: Pile[];
+    card: Card;
+    mulles: Card[][];
+  } | null = null;
+
+  for (const card of player.hand) {
+    const combos = generateCaptureCombinations(board, card);
+    for (const combo of combos) {
+      // Evaluate combo
+      const capturedCards: Card[] = [];
+      for (const pile of combo) {
+        if (pile instanceof Build) {
+          capturedCards.push(...pile.cards);
+        } else {
+          capturedCards.push(...pile);
+        }
+      }
+      const fullGroup = [...capturedCards, card];
+      const mulles = detectMulles(fullGroup, card);
+      
+      const metric = { mulleCount: mulles.length, size: fullGroup.length };
+      
+      if (
+        bestCombo === null ||
+        metric.mulleCount > bestCombo.mulleCount ||
+        (metric.mulleCount === bestCombo.mulleCount && metric.size > bestCombo.size)
+      ) {
+        bestCombo = {
+          mulleCount: mulles.length,
+          size: fullGroup.length,
+          piles: combo,
+          card: card,
+          mulles: mulles
+        };
+      }
+    }
+  }
+
+  if (bestCombo) {
+    return performCapture(board, player, bestCombo.card, bestCombo.piles);
+  }
+
+  // Single identical (mulle) or single match
+  for (const card of player.hand) {
+    // Find piles with single card matching board value and same code
+    const singlePiles = board.piles.filter(
+      p => !(p instanceof Build) && p.length === 1
+    );
+    
+    const identical = singlePiles.filter(
+      p => (p as Card[])[0].code() === card.code()
+    );
+    
+    if (identical.length > 0) {
+      return performCapture(board, player, card, [identical[0]]);
+    }
+    
+    // Any single value match (non-identical)
+    const valueMatch = singlePiles.filter(
+      p => (p as Card[])[0].valueOnBoard() === card.valueInHand()
+    );
+    
+    if (valueMatch.length > 0) {
+      return performCapture(board, player, card, [valueMatch[0]]);
+    }
+  }
+
+  // Build attempt
+  for (const card of player.hand) {
+    for (const pile of [...board.piles]) {
+      if (canBuild(board, player, pile, card)) {
+        return performBuild(board, player, pile, card, roundNumber);
+      }
+    }
+  }
+
+  // Try trotta before discard
+  for (const card of player.hand) {
+    try {
+      return performTrotta(board, player, card, roundNumber);
+    } catch (error) {
+      continue; // This card can't be trottad, try next
+    }
+  }
+
+  // Discard
+  const hasBuilds = playerHasBuilds(board, player);
+  
+  if (hasBuilds) {
+    // Player has builds - only try cards that match a build value (for feed)
+    const playerBuildValues = new Set(
+      board.listBuilds()
+        .filter(b => b.owner === player.name)
+        .map(b => b.value)
+    );
+    
+    for (const card of player.hand) {
+      if (playerBuildValues.has(card.valueOnBoard())) {
+        try {
+          return performDiscard(board, player, card);
+        } catch (error) {
+          continue;
+        }
+      }
+    }
+  } else {
+    // No builds - try any card for normal discard
+    for (const card of player.hand) {
+      try {
+        return performDiscard(board, player, card);
+      } catch (error) {
+        continue;
+      }
+    }
+  }
+
+  // If we reach here, the player cannot make any valid move
+  throw new Error('Spelaren kan inte göra något giltigt drag - detta borde inte hända!');
+}
+
+// ============================================================================
+// AI ACTION ENUMERATION
+// ============================================================================
+
+/**
+ * Enumerate all possible candidate actions for AI decision-making.
+ * Each action has a category and predicted reward.
+ */
+export function enumerateCandidateActions(
+  board: Board,
+  player: Player,
+  roundNumber: number = 1
+): CandidateAction[] {
+  const candidates: CandidateAction[] = [];
+
+  // Capture combinations
+  for (const card of [...player.hand]) {
+    const combos = generateCaptureCombinations(board, card);
+    for (const combo of combos) {
+      const capturedCards: Card[] = [];
+      for (const pile of combo) {
+        if (pile instanceof Build) {
+          capturedCards.push(...pile.cards);
+        } else {
+          capturedCards.push(...pile);
+        }
+      }
+      const fullGroup = [...capturedCards, card];
+      const mulles = detectMulles(fullGroup, card);
+      
+      const category = mulles.length > 0 ? 'capture_combo_mulle' : 'capture_combo';
+      const reward = fullGroup.length + 5 * mulles.length;
+      
+      // Use closure to capture current values
+      const makeExecutor = (cardLocal: Card, comboLocal: Pile[]) => {
+        return () => performCapture(board, player, cardLocal, comboLocal);
+      };
+      
+      candidates.push(new CandidateAction(category, reward, makeExecutor(card, combo)));
+    }
+  }
+
+  // Build actions
+  for (const card of [...player.hand]) {
+    for (const pile of [...board.piles]) {
+      if (canBuild(board, player, pile, card)) {
+        // Predicted reward modest (potential future capture)
+        const reward = 1.5;
+        
+        const makeExecutor = (cardLocal: Card, pileLocal: Pile) => {
+          return () => performBuild(board, player, pileLocal, cardLocal, roundNumber);
+        };
+        
+        candidates.push(new CandidateAction('build', reward, makeExecutor(card, pile)));
+      }
+    }
+  }
+
+  // Discard fallback
+  if (player.hand.length > 0) {
+    const hasBuilds = playerHasBuilds(board, player);
+    
+    for (const card of player.hand) {
+      // First check if card is reserved
+      const reserved = isCardReservedForBuild(board, player, card);
+      if (reserved !== null) {
+        continue; // Skip reserved cards
+      }
+
+      // Check if this card can be discarded
+      let canDiscard = false;
+      
+      if (!hasBuilds) {
+        // Player has no builds, can discard
+        canDiscard = true;
+      } else {
+        // Player has builds - can only "discard" if card matches a build value (feed)
+        const cardValue = card.valueOnBoard();
+        const playerBuildsMatching = board.listBuilds().filter(
+          b => b.owner === player.name && b.value === cardValue
+        );
+        canDiscard = playerBuildsMatching.length > 0;
+      }
+
+      if (canDiscard) {
+        const discardExec = (cardLocal: Card) => {
+          return () => performDiscard(board, player, cardLocal);
+        };
+        
+        candidates.push(new CandidateAction('discard', 0.0, discardExec(card)));
+        // Only add one discard option
+        break;
+      }
+    }
+  }
+
+  return candidates;
+}
