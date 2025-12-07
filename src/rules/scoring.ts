@@ -1,5 +1,4 @@
 import { Player } from '../models/Player';
-import { Card } from '../models/Card';
 
 /**
  * Cards that give 1 intake point
