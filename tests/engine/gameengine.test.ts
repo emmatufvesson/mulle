@@ -45,13 +45,19 @@ test('deterministic shuffle results in predictable dealing', () => {
   expect(state.deckSize).toBe(50);
   
   // Verify the actual cards dealt are in deterministic order
-  const p1 = engine.getPlayers().find(p => p.id === 'p1')!;
-  const p2 = engine.getPlayers().find(p => p.id === 'p2')!;
-  const p1Cards = p1.hand.cardsArray();
-  const p2Cards = p2.hand.cardsArray();
+  const enginePlayers = engine.getPlayers();
+  const p1 = enginePlayers.find(p => p.id === 'p1');
+  const p2 = enginePlayers.find(p => p.id === 'p2');
+  expect(p1).toBeDefined();
+  expect(p2).toBeDefined();
+  
+  const p1Cards = p1!.hand.cardsArray();
+  const p2Cards = p2!.hand.cardsArray();
   
   // With the given seed sequence, we can verify the first cards dealt
   // The shuffle is deterministic, so the cards should always be the same
+  // These hard-coded values are intentional - they verify the shuffle produces
+  // the expected deterministic output for the given seed
   expect(p1Cards.length).toBe(1);
   expect(p2Cards.length).toBe(1);
   expect(p1Cards[0].toString()).toBe('3 of spades');
