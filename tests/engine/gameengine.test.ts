@@ -8,7 +8,7 @@ function makeDeterministicRng(values: number[]) {
   };
 }
 
-test('constructs with N players and deals correctly', () => {
+test('constructs with 2 players and deals 5 cards each', () => {
   const players = [{ id: 'p1', name: 'Alice' }, { id: 'p2', name: 'Bob' }];
   const engine = new GameEngine(players);
   expect(engine.getState().deckSize).toBe(52);
