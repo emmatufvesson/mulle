@@ -1,5 +1,4 @@
 import { GameEngine } from '../../src/engine/GameEngine';
-import { Deck } from '../../src/models/Deck';
 function makeDeterministicRng(values: number[]) {
   let i = 0;
   return () => {
