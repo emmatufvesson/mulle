@@ -1,7 +1,5 @@
 import { GameEngine } from '../../src/engine/GameEngine';
 import { Deck } from '../../src/models/Deck';
-import { Card } from '../../src/models/Card';
-
 function makeDeterministicRng(values: number[]) {
   let i = 0;
   return () => {
