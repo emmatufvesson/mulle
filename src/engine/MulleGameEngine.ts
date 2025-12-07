@@ -53,7 +53,7 @@ export class MulleGameEngine {
     this.roundNumber = 1;
     this.dealNumber = 1;
     this.currentPlayerIndex = 0;
-    this.cardsPerDeal = config.cardsPerDeal ?? 6;
+    this.cardsPerDeal = config.cardsPerDeal ?? 8;
     this.roundsToWin = config.roundsToWin ?? 3;
     this.gameStarted = false;
   }
@@ -79,9 +79,9 @@ export class MulleGameEngine {
       player.addToHand(cards);
     }
 
-    // Deal 4 cards to the board on first deal
+    // Deal 8 cards to the board on first deal
     if (this.dealNumber === 1) {
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 8; i++) {
         const card = this.deck.draw();
         this.board.addCard(card);
       }

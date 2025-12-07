@@ -17,15 +17,15 @@ describe('MulleGameEngine', () => {
     test('deals cards on game start', () => {
       const engine = new MulleGameEngine({
         playerNames: ['Alice', 'Bob'],
-        cardsPerDeal: 6
+        cardsPerDeal: 8
       });
 
       engine.startGame();
       
       const snapshot = engine.getSnapshot();
-      expect(snapshot.players[0].hand.length).toBe(6);
-      expect(snapshot.players[1].hand.length).toBe(6);
-      expect(snapshot.board.piles.length).toBe(4); // 4 cards on board
+      expect(snapshot.players[0].hand.length).toBe(8);
+      expect(snapshot.players[1].hand.length).toBe(8);
+      expect(snapshot.board.piles.length).toBe(8); // 8 cards on board
     });
   });
 
