@@ -285,7 +285,7 @@ export function generateCaptureCombinations(board: Board, card: Card): Pile[][] 
       if (!hasOverlap) {
         // Choose this mask
         chosen.push(mask);
-        const newUsed = new Set([...Array.from(usedNow), ...mask]);
+        const newUsed = new Set([...usedNow, ...mask]);
         backtrack(j + 1, newUsed, chosen);
         chosen.pop();
       }
