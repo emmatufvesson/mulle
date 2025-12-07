@@ -1,12 +1,10 @@
 import { Board } from '../../src/models/Board';
 import { Card } from '../../src/models/Card';
-import { Player } from '../../src/models/Player';
 import { generateCaptureCombinations } from '../../src/rules/capture';
 
 describe('Special cards rules (A/Sp2/Ru10)', () => {
   test('specials can only be captured via builds of their hand value', () => {
     const board = new Board();
-    const p = new Player('P');
     const aceSpades = new Card('SP', 'A', 0); // board value 1, hand 14
     const sp2 = new Card('SP', '2', 0); // board 2, hand 15
     const ru10 = new Card('RU', '10', 0); // board 10, hand 16
