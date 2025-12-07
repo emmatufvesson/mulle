@@ -19,7 +19,7 @@ export class GameEngine {
 
   constructor(playerDefs: PlayerDef[], deck?: Deck) {
     this.deck = deck ?? new Deck();
-    this.players = playerDefs.map(p => new Player(p.id, p.name));
+    this.players = playerDefs.map(p => new Player(p.name));
   }
 
   // Allows injecting deterministic RNG for tests: function returning number in [0,1)
@@ -29,7 +29,7 @@ export class GameEngine {
 
   deal(cardsPerPlayer: number): void {
     const requiredCards = cardsPerPlayer * this.players.length;
-    const availableCards = this.deck.size();
+    const availableCards = this.deck.remaining();
     
     if (requiredCards > availableCards) {
       throw new Error(
@@ -39,8 +39,8 @@ export class GameEngine {
     
     for (let i = 0; i < cardsPerPlayer; i++) {
       for (const player of this.players) {
-        const drawn = this.deck.draw(1)[0];
-        if (drawn) player.hand.add(drawn);
+        const drawn = this.deck.draw();
+        if (drawn) player.addToHand([drawn]);
       }
     }
   }
@@ -57,16 +57,17 @@ export class GameEngine {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
   }
 
-  playCard(playerId: string, card: Card): boolean {
-    const p = this.players.find(pl => pl.id === playerId);
+  playCard(playerName: string, card: Card): boolean {
+    const p = this.players.find(pl => pl.name === playerName);
     if (!p) return false;
-    return p.playCard(card);
+    p.removeFromHand(card);
+    return true;
   }
 
   getState(): GameState {
     return {
-      players: this.players.map(p => ({ id: p.id, name: p.name, handSize: p.hand.count() })),
-      deckSize: this.deck.size(),
+      players: this.players.map(p => ({ id: p.name, name: p.name, handSize: p.hand.length })),
+      deckSize: this.deck.remaining(),
       currentPlayerIndex: this.currentPlayerIndex,
       started: this.started,
     };
