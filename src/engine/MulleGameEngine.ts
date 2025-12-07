@@ -264,8 +264,6 @@ export class MulleGameEngine {
     canBuild: number[];
     canDiscard: boolean;
   } {
-    const player = this.getCurrentPlayer();
-    
     // Check captures
     const combos = generateCaptureCombinations(this.board, card);
     const captureCombinations = combos.map(combo =>
