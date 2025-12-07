@@ -44,3 +44,19 @@ test('deterministic shuffle results in predictable dealing', () => {
   expect(state.players.reduce((s, p) => s + p.handSize, 0)).toBe(2);
   expect(state.deckSize).toBe(50);
 });
+
+test('deal throws error when not enough cards in deck', () => {
+  const players = [{ id: 'p1', name: 'Alice' }, { id: 'p2', name: 'Bob' }];
+  const engine = new GameEngine(players);
+  // Try to deal 30 cards per player (60 total) but deck only has 52
+  expect(() => engine.deal(30)).toThrow('Not enough cards in deck: need 60 but only 52 available');
+});
+
+test('deal throws error when exactly one card short', () => {
+  const players = [{ id: 'p1', name: 'Alice' }, { id: 'p2', name: 'Bob' }];
+  const engine = new GameEngine(players);
+  // Deal 25 cards per player (50 total), leaving 2 in deck
+  engine.deal(25);
+  // Try to deal 2 more cards per player (4 total) but only 2 remain
+  expect(() => engine.deal(2)).toThrow('Not enough cards in deck: need 4 but only 2 available');
+});
