@@ -155,11 +155,12 @@ export class Board {
       }
       for (let j = idx; j < subsetMasks.length; j++) {
         const mask = subsetMasks[j];
-        if (mask.some(m => usedIndices.has(m))) {
+        const hasOverlap = mask.some(m => usedIndices.has(m));
+        if (hasOverlap) {
           continue;
         }
         current.push(mask);
-        const newUsed = new Set([...usedIndices, ...mask]);
+        const newUsed = new Set([...Array.from(usedIndices), ...mask]);
         backtrack(j + 1, current, newUsed);
         current.pop();
       }
@@ -180,7 +181,7 @@ export class Board {
 
     let absorbedAny = false;
     // Sort in reverse to avoid index issues when removing
-    const sortedIndices = [...absorbFlat].sort((a, b) => b - a);
+    const sortedIndices = Array.from(absorbFlat).sort((a, b) => b - a);
     for (const idx of sortedIndices) {
       const pile = eligible[idx];
       const pileCards = pile instanceof Build ? pile.cards : pile;
