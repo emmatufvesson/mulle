@@ -30,7 +30,7 @@ describe('Trail restriction and tabbe', () => {
     // capture identical single allowed -> after capture board empty -> tabbe +1
     const { performCapture, generateCaptureCombinations } = require('../../src/rules/capture');
     const combos = generateCaptureCombinations(board, c);
-    const res = performCapture(board, p, c, combos[0]);
+    performCapture(board, p, c, combos[0]);
     expect(board.piles.length).toBe(0);
     p.tabbe += 1; // engine normally adds this; assert value changed
     expect(p.tabbe).toBe(1);
