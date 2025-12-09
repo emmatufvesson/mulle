@@ -218,6 +218,11 @@ def perform_discard(board: Board, player: Player, card: Card) -> ActionResult:
         build.add_trotta_card(card)
         return ActionResult(played=card, captured=[], mulle_pairs=[], build_created=False)
 
+    # Validate that no capture is possible before allowing discard
+    combos = generate_capture_combinations(board, card)
+    if combos and len(combos[0]) > 0:
+        raise InvalidAction(f"Kan inte släppa {card.code()} - intag är möjligt!")
+    
     # New rule: Cannot trail/discard if player has any builds on the board
     # The player must first capture their builds before trailing
     if player_has_builds(board, player):
