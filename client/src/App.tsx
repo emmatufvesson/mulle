@@ -113,7 +113,9 @@ export const App: React.FC = () => {
   const snapshot = engine.getSnapshot();
   const currentPlayer = engine.getCurrentPlayer();
   const isAI = engine.isAITurn();
-  const avail = selectedCard ? (engine as any).getAvailableActions(selectedCard) : { canCapture: false, captureCombinations: [], canBuild: [], canDiscard: true };
+  const avail = selectedCard
+    ? (engine as any).getAvailableActions(selectedCard)
+    : { canCapture: false, captureCombinations: [], canBuild: [], canDiscard: true, canTrotta: false };
 
   return (
     <div className="app">
@@ -141,7 +143,7 @@ export const App: React.FC = () => {
               <button className="btn" disabled={!avail.canBuild.includes(selectedPiles[0])} onClick={() => { try { if (!engine || !selectedCard) return; if (selectedPiles.length !== 1) { setMessage('Välj exakt en hög att bygga upp'); return; } (engine as any).playerBuild(selectedCard, selectedPiles[0]); setMessage('Bygga upp utfört'); setSelectedCard(null); setSelectedPiles([]);} catch (error: any) { setMessage(`Fel: ${error.message}`);} }}>Bygga upp</button>
               <button className="btn" disabled={!avail.canBuild.includes(selectedPiles[0])} onClick={() => { try { if (!engine || !selectedCard) return; if (selectedPiles.length !== 1) { setMessage('Välj exakt en hög att bygga ner'); return; } (engine as any).playerBuild(selectedCard, selectedPiles[0]); setMessage('Bygga ner (placeholder)'); setSelectedCard(null); setSelectedPiles([]);} catch (error: any) { setMessage(`Fel: ${error.message}`);} }}>Bygga ner</button>
               <button className="btn" onClick={() => { try { if (!engine || !selectedCard) return; (engine as any).playerDiscard(selectedCard); setMessage('Bygg in utfört'); setSelectedCard(null); setSelectedPiles([]);} catch (error: any) { setMessage(`Fel: ${error.message}`);} }} disabled={!avail.canDiscard}>Bygga in</button>
-              <button className="btn" onClick={() => { try { if (!engine || !selectedCard) return; (engine as any).playerDiscard(selectedCard); setMessage('Trötta utfört'); setSelectedCard(null); setSelectedPiles([]);} catch (error: any) { setMessage(`Fel: ${error.message}`);} }} disabled={!avail.canDiscard}>Trötta</button>
+              <button className="btn" onClick={() => { try { if (!engine || !selectedCard) return; (engine as any).playerDiscard(selectedCard); setMessage('Trötta utfört'); setSelectedCard(null); setSelectedPiles([]);} catch (error: any) { setMessage(`Fel: ${error.message}`);} }} disabled={!avail.canTrotta}>Trötta</button>
               <button className="btn" onClick={() => { try { if (!engine || !selectedCard) return; (engine as any).playerDiscard(selectedCard); setMessage('Låsa (via trötta/bygg in)'); setSelectedCard(null); setSelectedPiles([]);} catch (error: any) { setMessage(`Fel: ${error.message}`);} }} disabled={!avail.canDiscard}>Låsa</button>
             </>
           )}

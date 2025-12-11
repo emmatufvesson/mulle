@@ -1,5 +1,7 @@
 import { MulleGameEngine } from '../../src/engine/MulleGameEngine';
 import { Card } from '../../src/models/Card';
+import { Board } from '../../src/models/Board';
+import { Build } from '../../src/models/Build';
 
 describe('MulleGameEngine', () => {
   describe('Game initialization', () => {
@@ -68,6 +70,35 @@ describe('MulleGameEngine', () => {
         // Might fail if capture is possible or player has builds
         expect(error).toBeDefined();
       }
+    });
+
+    test('trotta stays available when discard is blocked', () => {
+      const engine = new MulleGameEngine({
+        playerNames: ['Du', 'AI']
+      });
+
+      engine.startGame();
+      const board = new Board();
+      const player = engine.getCurrentPlayer();
+
+      const nineSpades = new Card('SP', '9', 72);
+      const nineClubs = new Card('KL', '9', 59);
+      player.hand = [nineSpades, nineClubs];
+
+      const buildCards = [
+        new Card('RU', '2', 91),
+        new Card('SP', 'Q', 23),
+        new Card('SP', '5', 68)
+      ];
+      const build = new Build(buildCards, player.name, 9, false, 1);
+      board.piles.push(build);
+      board.addCard(new Card('RU', 'K', 50));
+
+      (engine as any).board = board;
+
+      const avail = (engine as any).getAvailableActions(nineSpades);
+      expect(avail.canTrotta).toBe(true);
+      expect(avail.canDiscard).toBe(false);
     });
   });
 

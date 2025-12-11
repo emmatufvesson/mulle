@@ -263,6 +263,7 @@ export class MulleGameEngine {
     captureCombinations: number[][];
     canBuild: number[];
     canDiscard: boolean;
+    canTrotta: boolean;
   } {
     const player = this.getCurrentPlayer();
     
@@ -287,7 +288,10 @@ export class MulleGameEngine {
       canCapture: captureCombinations.length > 0,
       captureCombinations,
       canBuild,
-      canDiscard: combos.length === 0
+      canDiscard: combos.length === 0,
+      canTrotta: this.board
+        .listBuilds()
+        .some(b => b.owner === player.name && b.value === card.valueOnBoard())
     };
   }
 
