@@ -13,6 +13,7 @@ export class Card {
   readonly suit: Suit;
   readonly rank: Rank;
   readonly deckId: number; // distinguish duplicates across two decks
+  readonly id: string;
 
   private static readonly SPECIAL_HAND_VALUES: Map<string, number> = new Map([
     ['SP:2', 15],   // Spader 2 = 15 in hand
@@ -23,6 +24,7 @@ export class Card {
     this.suit = suit;
     this.rank = rank;
     this.deckId = deckId;
+    this.id = `${suit}${rank}${deckId}`;
   }
 
   /**

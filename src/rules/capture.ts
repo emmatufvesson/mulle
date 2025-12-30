@@ -149,6 +149,7 @@ export function performDiscard(
   if (playerBuilds.length > 0) {
     // Add card to the first matching build (even if locked)
     const build = playerBuilds[0];
+    console.log(`Trotta: adding ${card.code()} to build value ${build.value}, owner ${build.owner}`);
     player.removeFromHand(card);
     build.addTrottaCard(card);
     return new ActionResult(card, [], [], false);

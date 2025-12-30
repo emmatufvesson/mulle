@@ -8,7 +8,8 @@ import {
   performCapture, 
   performBuild, 
   performDiscard,
-  generateCaptureCombinations
+  generateCaptureCombinations,
+  canBuild
 } from '../rules/capture';
 import { scoreRound, ScoreBreakdown } from '../rules/scoring';
 
@@ -16,6 +17,7 @@ export interface GameConfig {
   playerNames: string[];
   cardsPerDeal?: number;
   roundsToWin?: number;
+  seed?: number;
 }
 
 export interface RoundState {
@@ -47,7 +49,7 @@ export class MulleGameEngine {
   private gameStarted: boolean;
 
   constructor(config: GameConfig) {
-    this.deck = new Deck();
+    this.deck = new Deck(config.seed);
     this.board = new Board();
     this.players = config.playerNames.map(name => new Player(name));
     this.roundNumber = 1;
@@ -277,21 +279,48 @@ export class MulleGameEngine {
     const canBuild: number[] = [];
     for (let i = 0; i < this.board.piles.length; i++) {
       const pile = this.board.piles[i];
-      // Check if can build - simplified check
-      const baseCards = pile instanceof Array ? pile : pile.cards;
-      if (baseCards.length === 1) {
-        canBuild.push(i);
+      try {
+        // Inline canBuild logic
+        const baseCards = pile instanceof Build ? pile.cards : pile;
+        if (!(pile instanceof Build) && baseCards.length !== 1) {
+          continue;
+        }
+        const targetValue = baseCards.reduce((sum, c) => sum + c.valueOnBoard(), 0) + card.valueOnBoard();
+        const existingSameValue = this.board.listBuildsByValue(targetValue);
+        const hasOpponentBuild = existingSameValue.some(b => b.owner !== player.name);
+        if (hasOpponentBuild) {
+          continue;
+        }
+        if (pile instanceof Build && pile.locked) {
+          continue;
+        }
+        // Check reservation
+        let hasReservation = false;
+        for (const c of player.hand) {
+          if (c !== card && c.valueInHand() === targetValue) {
+            hasReservation = true;
+            break;
+          }
+        }
+        if (hasReservation) {
+          canBuild.push(i);
+        }
+      } catch (error) {
+        console.error(`Error checking build for pile ${i}:`, error);
       }
     }
+
+    const canTrotta = this.board
+      .listBuilds()
+      .some(b => b.owner === player.name && b.value === card.valueOnBoard());
+    console.log(`canTrotta for ${card.code()}: ${canTrotta}, builds: ${this.board.listBuilds().map(b => `${b.value}(${b.owner})`).join(', ')}`);
 
     return {
       canCapture: captureCombinations.length > 0,
       captureCombinations,
       canBuild,
       canDiscard: combos.length === 0,
-      canTrotta: this.board
-        .listBuilds()
-        .some(b => b.owner === player.name && b.value === card.valueOnBoard())
+      canTrotta
     };
   }
 

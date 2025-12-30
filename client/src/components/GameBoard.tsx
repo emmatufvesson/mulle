@@ -33,7 +33,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
             return (
               <div
-                key={index}
+                key={pile instanceof Build ? `build-${pile.value}-${pile.owner}-${index}` : `pile-${index}`}
                 className={`pile ${isSelected ? 'pile-selected' : ''} ${isBuild ? 'pile-build' : ''}`}
                 onClick={disabled ? undefined : () => onPileClick(index)}
               >
